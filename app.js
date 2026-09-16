@@ -7,81 +7,108 @@ let selectedFile = null;
 
 
 // =========================================================
-// FEATURE DATA
+// FEATURES
 // =========================================================
 
 const FEATURES = {
-
     chat: {
         title: "AI Chat",
         subtitle: "Your personal AI assistant"
     },
-
     image: {
         title: "Create Image",
         subtitle: "Generate images with AI"
     },
-
     analyze: {
         title: "Analyze Image",
         subtitle: "Understand images with AI"
     },
-
     file: {
         title: "Analyze File",
         subtitle: "Analyze your documents"
     },
-
     voice: {
         title: "Voice",
         subtitle: "Talk with MY AI"
     },
-
     coding: {
         title: "Coding",
         subtitle: "Build and debug with AI"
     },
-
     study: {
         title: "Study",
         subtitle: "Learn with MY AI"
     },
-
     translate: {
         title: "Translate",
         subtitle: "Translate any language"
     },
-
     summarize: {
         title: "Summarize",
         subtitle: "Summarize text quickly"
     },
-
     math: {
         title: "Math Solver",
         subtitle: "Solve math problems"
     },
-
     search: {
         title: "Web Search",
         subtitle: "Search with AI"
     },
-
     ocr: {
         title: "OCR",
         subtitle: "Read text from images"
     },
-
     notes: {
         title: "AI Notes",
         subtitle: "Create smart notes"
     },
-
     editing: {
         title: "Edit Image",
         subtitle: "AI image editing"
     }
 };
+
+
+// =========================================================
+// SAFE API RESPONSE
+// =========================================================
+
+async function readApiResponse(response) {
+
+    const contentType =
+        response.headers.get("content-type") || "";
+
+    const text =
+        await response.text();
+
+    // JSON response
+    if (
+        contentType.includes("application/json")
+    ) {
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            throw new Error(
+                "Server returned invalid JSON."
+            );
+        }
+    }
+
+    // Server returned HTML or something else
+    if (
+        text.trim().startsWith("<")
+    ) {
+        throw new Error(
+            `Server returned an HTML page instead of JSON. HTTP ${response.status}`
+        );
+    }
+
+    throw new Error(
+        text.trim() ||
+        `Server error. HTTP ${response.status}`
+    );
+}
 
 
 // =========================================================
@@ -115,16 +142,10 @@ function selectFeature(feature) {
 
     if (input) {
 
-        if (feature === "image") {
-
-            input.placeholder =
-                "Describe the image you want...";
-
-        } else {
-
-            input.placeholder =
-                "Message MY AI...";
-        }
+        input.placeholder =
+            feature === "image"
+                ? "Describe the image you want..."
+                : "Message MY AI...";
 
         input.focus();
     }
@@ -142,9 +163,7 @@ function newChat() {
     const messages =
         document.getElementById("messages");
 
-    if (!messages) {
-        return;
-    }
+    if (!messages) return;
 
     messages.innerHTML = `
         <div class="empty-state" id="emptyState">
@@ -154,14 +173,12 @@ function newChat() {
         </div>
     `;
 
-    currentFeature = "chat";
-
     selectFeature("chat");
 }
 
 
 // =========================================================
-// ENTER KEY
+// ENTER
 // =========================================================
 
 function handleEnter(event) {
@@ -170,9 +187,7 @@ function handleEnter(event) {
         event.key === "Enter" &&
         !event.shiftKey
     ) {
-
         event.preventDefault();
-
         sendMessage();
     }
 }
@@ -203,33 +218,25 @@ async function sendMessage() {
     const input =
         document.getElementById("userInput");
 
-    if (!input) {
-        return;
-    }
+    if (!input) return;
 
     const message =
         input.value.trim();
 
-    if (!message) {
-        return;
-    }
-
-
-    if (currentFeature === "image") {
-
-        input.value = "";
-
-        autoResize(input);
-
-        await generateImage(message);
-
-        return;
-    }
+    if (!message) return;
 
 
     input.value = "";
 
     autoResize(input);
+
+
+    if (currentFeature === "image") {
+
+        await generateImage(message);
+
+        return;
+    }
 
 
     addMessage(
@@ -256,15 +263,18 @@ async function sendMessage() {
                     },
 
                     body: JSON.stringify({
-                        message: message,
-                        feature: currentFeature
+                        message,
+                        feature:
+                            currentFeature
                     })
                 }
             );
 
 
         const data =
-            await response.json();
+            await readApiResponse(
+                response
+            );
 
 
         removeTyping(typingId);
@@ -274,7 +284,7 @@ async function sendMessage() {
 
             throw new Error(
                 data.error ||
-                "AI request failed."
+                `AI request failed. HTTP ${response.status}`
             );
         }
 
@@ -291,8 +301,7 @@ async function sendMessage() {
         removeTyping(typingId);
 
         addMessage(
-            "❌ " +
-            error.message,
+            "❌ " + error.message,
             "ai"
         );
     }
@@ -308,13 +317,13 @@ function addMessage(text, type) {
     const messages =
         document.getElementById("messages");
 
-    if (!messages) {
-        return;
-    }
+    if (!messages) return;
 
 
     const empty =
-        document.getElementById("emptyState");
+        document.getElementById(
+            "emptyState"
+        );
 
     if (empty) {
         empty.remove();
@@ -343,15 +352,13 @@ function addMessage(text, type) {
 
     if (type === "ai") {
 
-        typeMessage(
-            bubble,
-            text
-        );
+        // Instant response
+        // No slow character-by-character animation
+        bubble.textContent = text;
 
     } else {
 
-        bubble.textContent =
-            text;
+        bubble.textContent = text;
     }
 
 
@@ -364,50 +371,15 @@ function addMessage(text, type) {
 
 
 // =========================================================
-// AI TYPING EFFECT
-// =========================================================
-
-function typeMessage(element, text) {
-
-    element.textContent = "";
-
-    let index = 0;
-
-    const speed = 8;
-
-
-    function type() {
-
-        if (index >= text.length) {
-            return;
-        }
-
-        element.textContent +=
-            text[index];
-
-        index++;
-
-        scrollToBottom();
-
-        setTimeout(
-            type,
-            speed
-        );
-    }
-
-
-    type();
-}
-
-
-// =========================================================
 // TYPING INDICATOR
 // =========================================================
 
 function showTyping() {
 
     const messages =
-        document.getElementById("messages");
+        document.getElementById(
+            "messages"
+        );
 
     const id =
         "typing-" +
@@ -460,11 +432,11 @@ function removeTyping(id) {
 function scrollToBottom() {
 
     const messages =
-        document.getElementById("messages");
+        document.getElementById(
+            "messages"
+        );
 
-    if (!messages) {
-        return;
-    }
+    if (!messages) return;
 
     requestAnimationFrame(() => {
 
@@ -481,7 +453,7 @@ function scrollToBottom() {
 async function generateImage(prompt) {
 
     addMessage(
-        "🖼️ Creating your image...",
+        "🖼️ " + prompt,
         "user"
     );
 
@@ -504,14 +476,16 @@ async function generateImage(prompt) {
                     },
 
                     body: JSON.stringify({
-                        prompt: prompt
+                        prompt
                     })
                 }
             );
 
 
         const data =
-            await response.json();
+            await readApiResponse(
+                response
+            );
 
 
         removeTyping(typingId);
@@ -521,7 +495,18 @@ async function generateImage(prompt) {
 
             throw new Error(
                 data.error ||
-                "Image generation failed."
+                `Image generation failed. HTTP ${response.status}`
+            );
+        }
+
+
+        if (
+            !data.image ||
+            !data.mime_type
+        ) {
+
+            throw new Error(
+                "Server did not return an image."
             );
         }
 
@@ -537,8 +522,7 @@ async function generateImage(prompt) {
         removeTyping(typingId);
 
         addMessage(
-            "❌ " +
-            error.message,
+            "❌ " + error.message,
             "ai"
         );
     }
@@ -546,7 +530,7 @@ async function generateImage(prompt) {
 
 
 // =========================================================
-// SHOW GENERATED IMAGE
+// SHOW IMAGE
 // =========================================================
 
 function showGeneratedImage(
@@ -555,7 +539,9 @@ function showGeneratedImage(
 ) {
 
     const messages =
-        document.getElementById("messages");
+        document.getElementById(
+            "messages"
+        );
 
 
     const row =
@@ -589,36 +575,32 @@ function showGeneratedImage(
         "message-actions";
 
 
-    const saveButton =
+    const save =
         document.createElement("button");
 
-    saveButton.className =
+    save.className =
         "image-save";
 
-    saveButton.textContent =
+    save.textContent =
         "⬇ Save Image";
 
 
-    saveButton.onclick =
-        function () {
+    save.onclick = () => {
 
-            const link =
-                document.createElement("a");
+        const link =
+            document.createElement("a");
 
-            link.href =
-                image.src;
+        link.href =
+            image.src;
 
-            link.download =
-                "my-ai-image.png";
+        link.download =
+            "my-ai-image.png";
 
-            link.click();
-        };
+        link.click();
+    };
 
 
-    actions.appendChild(
-        saveButton
-    );
-
+    actions.appendChild(save);
 
     bubble.appendChild(image);
 
@@ -633,13 +615,15 @@ function showGeneratedImage(
 
 
 // =========================================================
-// FILE PICKER
+// FILE
 // =========================================================
 
 function openFile() {
 
     const input =
-        document.getElementById("fileInput");
+        document.getElementById(
+            "fileInput"
+        );
 
     if (input) {
         input.click();
@@ -647,19 +631,12 @@ function openFile() {
 }
 
 
-// =========================================================
-// FILE SELECTED
-// =========================================================
-
 function fileSelected(event) {
 
     const file =
         event.target.files[0];
 
-    if (!file) {
-        return;
-    }
-
+    if (!file) return;
 
     selectedFile = file;
 
@@ -677,7 +654,7 @@ function fileSelected(event) {
     } else {
 
         addMessage(
-            `📄 ${file.name}\n\nFull file analysis will be connected here.`,
+            `📄 ${file.name}\n\nFile analysis is not connected yet.`,
             "ai"
         );
     }
@@ -685,7 +662,7 @@ function fileSelected(event) {
 
 
 // =========================================================
-// IMAGE ANALYSIS
+// IMAGE ANALYSIS / OCR
 // =========================================================
 
 async function analyzeImage(
@@ -732,7 +709,9 @@ async function analyzeImage(
 
 
         const data =
-            await response.json();
+            await readApiResponse(
+                response
+            );
 
 
         removeTyping(typingId);
@@ -742,13 +721,14 @@ async function analyzeImage(
 
             throw new Error(
                 data.error ||
-                "Image analysis failed."
+                `Image analysis failed. HTTP ${response.status}`
             );
         }
 
 
         addMessage(
-            data.reply,
+            data.reply ||
+            "No analysis result.",
             "ai"
         );
 
@@ -758,8 +738,7 @@ async function analyzeImage(
         removeTyping(typingId);
 
         addMessage(
-            "❌ " +
-            error.message,
+            "❌ " + error.message,
             "ai"
         );
     }
@@ -767,7 +746,7 @@ async function analyzeImage(
 
 
 // =========================================================
-// VOICE INPUT
+// VOICE
 // =========================================================
 
 function startVoice() {
@@ -792,31 +771,28 @@ function startVoice() {
         new SpeechRecognition();
 
 
-    recognition.lang =
-        "bn-BD";
+    recognition.lang = "bn-BD";
 
-    recognition.interimResults =
-        false;
+    recognition.interimResults = false;
 
-    recognition.maxAlternatives =
-        1;
+    recognition.maxAlternatives = 1;
 
 
-    recognition.onstart =
-        function () {
+    recognition.onstart = () => {
 
-            addMessage(
-                "🎙️ Listening...",
-                "ai"
-            );
-        };
+        addMessage(
+            "🎙️ Listening...",
+            "ai"
+        );
+    };
 
 
     recognition.onresult =
-        function (event) {
+        (event) => {
 
             const text =
-                event.results[0][0].transcript;
+                event.results[0][0]
+                    .transcript;
 
 
             const input =
@@ -825,9 +801,7 @@ function startVoice() {
                 );
 
 
-            input.value =
-                text;
-
+            input.value = text;
 
             autoResize(input);
 
@@ -835,14 +809,13 @@ function startVoice() {
         };
 
 
-    recognition.onerror =
-        function () {
+    recognition.onerror = () => {
 
-            addMessage(
-                "❌ Voice input failed. Please try again.",
-                "ai"
-            );
-        };
+        addMessage(
+            "❌ Voice input failed. Please try again.",
+            "ai"
+        );
+    };
 
 
     recognition.start();
@@ -850,13 +823,15 @@ function startVoice() {
 
 
 // =========================================================
-// MOBILE SIDEBAR
+// SIDEBAR
 // =========================================================
 
 function toggleSidebar() {
 
     const sidebar =
-        document.getElementById("sidebar");
+        document.getElementById(
+            "sidebar"
+        );
 
     const overlay =
         document.getElementById(
@@ -864,9 +839,7 @@ function toggleSidebar() {
         );
 
 
-    if (!sidebar || !overlay) {
-        return;
-    }
+    if (!sidebar || !overlay) return;
 
 
     sidebar.classList.toggle("open");
@@ -878,7 +851,9 @@ function toggleSidebar() {
 function closeSidebar() {
 
     const sidebar =
-        document.getElementById("sidebar");
+        document.getElementById(
+            "sidebar"
+        );
 
     const overlay =
         document.getElementById(
@@ -887,22 +862,26 @@ function closeSidebar() {
 
 
     if (sidebar) {
-        sidebar.classList.remove("open");
+        sidebar.classList.remove(
+            "open"
+        );
     }
 
     if (overlay) {
-        overlay.classList.remove("show");
+        overlay.classList.remove(
+            "show"
+        );
     }
 }
 
 
 // =========================================================
-// INITIALIZE
+// START
 // =========================================================
 
 document.addEventListener(
     "DOMContentLoaded",
-    function () {
+    () => {
 
         selectFeature("chat");
 
