@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#080b12">
-    <meta name="description" content="MY AI - Your personal AI assistant">
     <title>MY AI</title>
-
     <link rel="stylesheet" href="/style.css">
 </head>
 
@@ -14,325 +12,362 @@
 
 <div class="app">
 
-    <!-- SIDEBAR -->
+    <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
 
-        <div class="logo">
-            <div class="logo-icon">🤖</div>
-            <div class="logo-text">MY AI</div>
+        <div class="sidebar-top">
+
+            <div class="logo">
+                <div class="logo-icon">🤖</div>
+                <div class="logo-text">MY AI</div>
+            </div>
+
+            <button class="new-chat" onclick="newChat()">
+                <span>＋</span>
+                <span>New Chat</span>
+            </button>
+
+            <div class="history-title">CHAT HISTORY</div>
+
+            <div class="chat-history" id="chatHistory">
+                <!-- Saved chats will appear here -->
+            </div>
+
         </div>
 
-        <button class="new-chat" onclick="newChat()">
-            <span>＋</span>
-            <span>New Chat</span>
-        </button>
-
-        <div class="menu-title">AI TOOLS</div>
-
-        <nav class="sidebar-menu">
-
-            <button onclick="selectFeature('chat')">
-                <span>💬</span>
-                <span>AI Chat</span>
-            </button>
-
-            <button onclick="selectFeature('image')">
-                <span>🖼️</span>
-                <span>Create Image</span>
-            </button>
-
-            <button onclick="selectFeature('analyze')">
-                <span>📸</span>
-                <span>Analyze Image</span>
-            </button>
-
-            <button onclick="selectFeature('file')">
-                <span>📄</span>
-                <span>Analyze File</span>
-            </button>
-
-            <button onclick="selectFeature('voice')">
-                <span>🎙️</span>
-                <span>Voice</span>
-            </button>
-
-            <button onclick="selectFeature('coding')">
-                <span>💻</span>
-                <span>Coding</span>
-            </button>
-
-            <button onclick="selectFeature('study')">
-                <span>📚</span>
-                <span>Study</span>
-            </button>
-
-            <button onclick="selectFeature('translate')">
-                <span>🌐</span>
-                <span>Translate</span>
-            </button>
-
-            <button onclick="selectFeature('summarize')">
-                <span>📝</span>
-                <span>Summarize</span>
-            </button>
-
-            <button onclick="selectFeature('math')">
-                <span>➗</span>
-                <span>Math Solver</span>
-            </button>
-
-            <button onclick="selectFeature('search')">
-                <span>🔍</span>
-                <span>Web Search</span>
-            </button>
-
-            <button onclick="selectFeature('ocr')">
-                <span>📷</span>
-                <span>OCR</span>
-            </button>
-
-            <button onclick="selectFeature('notes')">
-                <span>📋</span>
-                <span>AI Notes</span>
-            </button>
-
-            <button onclick="selectFeature('editing')">
-                <span>🎨</span>
-                <span>Edit Image</span>
-            </button>
-
-        </nav>
-
         <div class="sidebar-bottom">
-            <div class="account-card">
-                <div class="account-avatar">M</div>
-                <div>
-                    <strong>MY AI</strong>
-                    <small>Free Plan</small>
+
+            <button class="profile-button" onclick="openProfile()">
+                <div class="profile-avatar" id="profileAvatar">M</div>
+
+                <div class="profile-info">
+                    <strong id="profileName">MY AI User</strong>
+                    <small id="profilePlan">Free Plan</small>
                 </div>
-            </div>
+
+                <span class="profile-arrow">⋮</span>
+            </button>
+
         </div>
 
     </aside>
 
 
-    <!-- MAIN -->
+    <!-- Main -->
     <main class="main">
 
-        <!-- HEADER -->
+        <!-- Header -->
         <header class="header">
 
             <div class="header-left">
 
-                <button class="menu-btn" onclick="toggleSidebar()">
+                <button
+                    class="menu-btn"
+                    onclick="toggleSidebar()"
+                    aria-label="Menu"
+                >
                     ☰
                 </button>
 
                 <div>
-                    <h1 id="pageTitle">MY AI</h1>
-                    <p id="pageSubtitle">
-                        Your personal AI assistant
-                    </p>
+                    <h1>MY AI</h1>
+                    <p>Your personal AI assistant</p>
                 </div>
 
             </div>
 
-            <div class="online-status">
-                <span class="online-dot"></span>
-                Online
+
+            <div class="header-right">
+
+                <span class="online-status">
+                    <span class="online-dot"></span>
+                    Online
+                </span>
+
             </div>
 
         </header>
 
 
-        <!-- CONTENT -->
-        <div class="content">
+        <!-- Chat -->
+        <section class="chat-container">
 
-            <!-- WELCOME -->
-            <section class="welcome">
+            <div class="messages" id="messages">
 
-                <div class="welcome-icon">
-                    ✨
-                </div>
+                <div class="empty-state" id="emptyState">
 
-                <div>
-                    <h2>What can I help you with?</h2>
+                    <div class="empty-icon">
+                        🤖
+                    </div>
+
+                    <h2>How can I help you?</h2>
+
                     <p>
-                        Ask anything, create images, analyze files and more.
+                        Ask anything or use <strong>/</strong> for AI commands.
                     </p>
-                </div>
-
-            </section>
-
-
-            <!-- FEATURE TILES -->
-            <section class="tiles">
-
-                <button class="tile" onclick="selectFeature('chat')">
-                    <div class="tile-icon">💬</div>
-                    <div class="tile-title">AI Chat</div>
-                    <div class="tile-desc">Ask anything</div>
-                </button>
-
-                <button class="tile" onclick="selectFeature('image')">
-                    <div class="tile-icon">🖼️</div>
-                    <div class="tile-title">Create Image</div>
-                    <div class="tile-desc">Generate with AI</div>
-                </button>
-
-                <button class="tile" onclick="selectFeature('analyze')">
-                    <div class="tile-icon">📸</div>
-                    <div class="tile-title">Analyze Image</div>
-                    <div class="tile-desc">Understand images</div>
-                </button>
-
-                <button class="tile" onclick="selectFeature('file')">
-                    <div class="tile-icon">📄</div>
-                    <div class="tile-title">Analyze File</div>
-                    <div class="tile-desc">PDF & documents</div>
-                </button>
-
-                <button class="tile" onclick="selectFeature('voice')">
-                    <div class="tile-icon">🎙️</div>
-                    <div class="tile-title">Voice</div>
-                    <div class="tile-desc">Talk with MY AI</div>
-                </button>
-
-                <button class="tile" onclick="selectFeature('coding')">
-                    <div class="tile-icon">💻</div>
-                    <div class="tile-title">Coding</div>
-                    <div class="tile-desc">Code with AI</div>
-                </button>
-
-                <button class="tile" onclick="selectFeature('study')">
-                    <div class="tile-icon">📚</div>
-                    <div class="tile-title">Study</div>
-                    <div class="tile-desc">Learn anything</div>
-                </button>
-
-                <button class="tile" onclick="selectFeature('translate')">
-                    <div class="tile-icon">🌐</div>
-                    <div class="tile-title">Translate</div>
-                    <div class="tile-desc">Any language</div>
-                </button>
-
-                <button class="tile" onclick="selectFeature('summarize')">
-                    <div class="tile-icon">📝</div>
-                    <div class="tile-title">Summarize</div>
-                    <div class="tile-desc">Make it shorter</div>
-                </button>
-
-                <button class="tile" onclick="selectFeature('math')">
-                    <div class="tile-icon">➗</div>
-                    <div class="tile-title">Math Solver</div>
-                    <div class="tile-desc">Solve problems</div>
-                </button>
-
-                <button class="tile" onclick="selectFeature('search')">
-                    <div class="tile-icon">🔍</div>
-                    <div class="tile-title">Web Search</div>
-                    <div class="tile-desc">Search the web</div>
-                </button>
-
-                <button class="tile" onclick="selectFeature('ocr')">
-                    <div class="tile-icon">📷</div>
-                    <div class="tile-title">OCR</div>
-                    <div class="tile-desc">Read image text</div>
-                </button>
-
-                <button class="tile" onclick="selectFeature('notes')">
-                    <div class="tile-icon">📋</div>
-                    <div class="tile-title">AI Notes</div>
-                    <div class="tile-desc">Smart notes</div>
-                </button>
-
-                <button class="tile" onclick="selectFeature('editing')">
-                    <div class="tile-icon">🎨</div>
-                    <div class="tile-title">Edit Image</div>
-                    <div class="tile-desc">AI image editing</div>
-                </button>
-
-            </section>
-
-
-            <!-- CHAT -->
-            <section class="chat-container">
-
-                <div class="messages" id="messages">
-
-                    <div class="empty-state" id="emptyState">
-                        <div class="empty-icon">🤖</div>
-                        <h3>How can I help?</h3>
-                        <p>Choose a tool above or send me a message.</p>
-                    </div>
 
                 </div>
 
+            </div>
 
-                <!-- INPUT -->
-                <div class="input-area">
 
-                    <div class="input-box">
+            <!-- Command Suggestions -->
+            <div
+                class="command-box"
+                id="commandBox"
+                style="display:none;"
+            >
 
-                        <button
-                            class="input-btn"
-                            onclick="openFile()"
-                            title="Attach file">
-                            📎
-                        </button>
+                <button onclick="useCommand('/image ')">
+                    <span class="command-icon">🖼️</span>
 
-                        <textarea
-                            id="userInput"
-                            rows="1"
-                            placeholder="Message MY AI..."
-                            oninput="autoResize(this)"
-                            onkeydown="handleEnter(event)">
-                        </textarea>
+                    <span>
+                        <strong>/image</strong>
+                        <small>Generate an image</small>
+                    </span>
+                </button>
 
-                        <button
-                            class="input-btn"
-                            onclick="startVoice()"
-                            title="Voice input">
-                            🎙️
-                        </button>
 
-                        <button
-                            class="send-btn"
-                            onclick="sendMessage()"
-                            title="Send">
-                            ➤
-                        </button>
+                <button onclick="useCommand('/voice ')">
+                    <span class="command-icon">🔊</span>
 
-                    </div>
+                    <span>
+                        <strong>/voice</strong>
+                        <small>Convert text to voice</small>
+                    </span>
+                </button>
 
-                    <input
-                        type="file"
-                        id="fileInput"
-                        accept="image/*,.pdf,.txt,.doc,.docx"
-                        onchange="fileSelected(event)"
+
+                <button onclick="useCommand('/analyze ')">
+                    <span class="command-icon">📸</span>
+
+                    <span>
+                        <strong>/analyze</strong>
+                        <small>Analyze an image</small>
+                    </span>
+                </button>
+
+
+                <button onclick="useCommand('/translate ')">
+                    <span class="command-icon">🌐</span>
+
+                    <span>
+                        <strong>/translate</strong>
+                        <small>Translate text</small>
+                    </span>
+                </button>
+
+
+                <button onclick="useCommand('/code ')">
+                    <span class="command-icon">💻</span>
+
+                    <span>
+                        <strong>/code</strong>
+                        <small>Coding assistant</small>
+                    </span>
+                </button>
+
+
+                <button onclick="useCommand('/help')">
+                    <span class="command-icon">❓</span>
+
+                    <span>
+                        <strong>/help</strong>
+                        <small>Show all commands</small>
+                    </span>
+                </button>
+
+            </div>
+
+
+            <!-- Input -->
+            <div class="input-area">
+
+                <div class="input-box">
+
+                    <button
+                        class="input-btn"
+                        onclick="openFile()"
+                        title="Attach file"
                     >
+                        📎
+                    </button>
 
-                    <div class="disclaimer">
-                        MY AI can make mistakes. Check important information.
-                    </div>
+
+                    <textarea
+                        id="userInput"
+                        rows="1"
+                        placeholder="Message MY AI..."
+                        oninput="handleInput(this)"
+                        onkeydown="handleEnter(event)"
+                    ></textarea>
+
+
+                    <button
+                        class="input-btn"
+                        onclick="startVoice()"
+                        title="Voice input"
+                    >
+                        🎙️
+                    </button>
+
+
+                    <button
+                        class="send-btn"
+                        onclick="sendMessage()"
+                        title="Send"
+                    >
+                        ➤
+                    </button>
 
                 </div>
 
-            </section>
 
-        </div>
+                <input
+                    type="file"
+                    id="fileInput"
+                    accept="image/*,.pdf,.txt,.doc,.docx"
+                    onchange="fileSelected(event)"
+                    hidden
+                >
+
+
+                <div class="disclaimer">
+                    MY AI can make mistakes. Check important information.
+                </div>
+
+            </div>
+
+        </section>
 
     </main>
 
 </div>
 
 
-<!-- MOBILE OVERLAY -->
+<!-- Mobile Overlay -->
 <div
     class="sidebar-overlay"
     id="sidebarOverlay"
-    onclick="toggleSidebar()">
+    onclick="toggleSidebar()"
+></div>
+
+
+<!-- Profile Modal -->
+<div
+    class="modal-overlay"
+    id="profileModal"
+    style="display:none;"
+>
+
+    <div class="profile-modal">
+
+        <button
+            class="modal-close"
+            onclick="closeProfile()"
+        >
+            ×
+        </button>
+
+        <div class="large-avatar" id="modalAvatar">
+            M
+        </div>
+
+        <h2 id="modalName">
+            MY AI User
+        </h2>
+
+        <p id="modalEmail">
+            Free Account
+        </p>
+
+        <div class="profile-actions">
+
+            <button onclick="openLogin()">
+                🔐 Login / Signup
+            </button>
+
+            <button onclick="clearChatHistory()">
+                🗑️ Clear Chat History
+            </button>
+
+        </div>
+
+    </div>
+
 </div>
+
+
+<!-- Login Modal -->
+<div
+    class="modal-overlay"
+    id="loginModal"
+    style="display:none;"
+>
+
+    <div class="login-modal">
+
+        <button
+            class="modal-close"
+            onclick="closeLogin()"
+        >
+            ×
+        </button>
+
+        <div class="login-logo">
+            🤖
+        </div>
+
+        <h2>Welcome to MY AI</h2>
+
+        <p>
+            Login to save your chats and memory.
+        </p>
+
+
+        <input
+            type="text"
+            id="loginName"
+            placeholder="Your name"
+        >
+
+
+        <input
+            type="email"
+            id="loginEmail"
+            placeholder="Email address"
+        >
+
+
+        <input
+            type="password"
+            id="loginPassword"
+            placeholder="Password"
+        >
+
+
+        <button
+            class="login-button"
+            onclick="loginUser()"
+        >
+            Continue
+        </button>
+
+
+        <small>
+            Your conversations will be saved to your account.
+        </small>
+
+    </div>
+
+</div>
+
+
+<!-- Toast -->
+<div
+    class="toast"
+    id="toast"
+></div>
 
 
 <script src="/app.js"></script>
