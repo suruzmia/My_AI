@@ -1,5 +1,6 @@
 import os
 import base64
+import time
 
 from flask import Flask, request, jsonify, send_from_directory
 from google import genai
@@ -7,35 +8,47 @@ from google.genai import types
 
 
 # =========================================================
-# APP CONFIG
+# MY AI - SERVER
 # =========================================================
 
 app = Flask(__name__, static_folder=".")
 
-TEXT_MODEL = "gemini-3.8-flash"
+
+# ---------------------------------------------------------
+# MODELS
+# ---------------------------------------------------------
+
+TEXT_MODELS = [
+    "gemini-3.8-flash",
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash-lite",
+]
+
 IMAGE_MODEL = "gemini-3.1-flash-image"
 
-API_KEY = os.environ.get("GEMINI_API_KEY")
 
-
-# =========================================================
+# ---------------------------------------------------------
 # GEMINI CLIENT
-# =========================================================
+# ---------------------------------------------------------
+
+API_KEY = os.environ.get("GEMINI_API_KEY")
 
 client = None
 
 if API_KEY:
     try:
-        client = genai.Client(
-            api_key=API_KEY
-        )
+        client = genai.Client(api_key=API_KEY)
+        print("MY AI: Gemini client initialized.")
     except Exception as error:
-        print("Gemini client error:", error)
+        print("MY AI: Gemini client error:", repr(error))
+else:
+    print("MY AI: GEMINI_API_KEY is missing.")
 
 
-# =========================================================
-# BASIC HELPERS
-# =========================================================
+# ---------------------------------------------------------
+# HELPERS
+# ---------------------------------------------------------
 
 def api_error(message, status=500):
     return jsonify({
@@ -44,32 +57,116 @@ def api_error(message, status=500):
 
 
 def check_client():
-    if client is None:
-        return False
-
-    return True
+    return client is not None
 
 
-# =========================================================
-# HOME PAGE
-# =========================================================
+def is_temporary_error(error):
+    """
+    Detect temporary Gemini capacity/rate-limit errors.
+    """
+
+    text = str(error).upper()
+
+    temporary_words = [
+        "503",
+        "UNAVAILABLE",
+        "HIGH DEMAND",
+        "429",
+        "RESOURCE_EXHAUSTED",
+        "TOO MANY REQUESTS",
+        "OVERLOADED",
+        "CAPACITY",
+    ]
+
+    return any(word in text for word in temporary_words)
+
+
+def generate_text_with_fallback(contents):
+    """
+    Try multiple Gemini text models automatically.
+
+    If one model is temporarily unavailable,
+    the next model will be tried.
+    """
+
+    last_error = None
+
+    for model in TEXT_MODELS:
+
+        # First attempt
+        try:
+            print(f"Trying text model: {model}")
+
+            response = client.models.generate_content(
+                model=model,
+                contents=contents
+            )
+
+            if response and response.text:
+                print(f"Success: {model}")
+                return response.text
+
+        except Exception as error:
+            last_error = error
+
+            print(
+                f"{model} failed: {repr(error)}"
+            )
+
+            # Retry only temporary errors
+            if is_temporary_error(error):
+
+                try:
+                    print(
+                        f"Retrying {model}..."
+                    )
+
+                    time.sleep(1.5)
+
+                    response = client.models.generate_content(
+                        model=model,
+                        contents=contents
+                    )
+
+                    if response and response.text:
+                        print(
+                            f"Retry success: {model}"
+                        )
+                        return response.text
+
+                except Exception as retry_error:
+                    last_error = retry_error
+
+                    print(
+                        f"{model} retry failed: "
+                        f"{repr(retry_error)}"
+                    )
+
+            continue
+
+    raise RuntimeError(
+        "All text models are temporarily unavailable."
+    ) from last_error
+
+
+# ---------------------------------------------------------
+# HOME
+# ---------------------------------------------------------
 
 @app.route("/")
 def home():
-
     return send_from_directory(
         ".",
         "index.html"
     )
 
 
-# =========================================================
+# ---------------------------------------------------------
 # STATIC FILES
-# =========================================================
+# ---------------------------------------------------------
 
 @app.route("/<path:filename>")
 def static_files(filename):
-
     return send_from_directory(
         ".",
         filename
@@ -80,46 +177,33 @@ def static_files(filename):
 # AI CHAT
 # =========================================================
 
-@app.route(
-    "/api/chat",
-    methods=["POST"]
-)
+@app.route("/api/chat", methods=["POST"])
 def chat():
 
     if not check_client():
-
         return api_error(
             "GEMINI_API_KEY is not configured on the server.",
             500
         )
 
-
     data = request.get_json(
         silent=True
     ) or {}
-
 
     message = str(
         data.get("message", "")
     ).strip()
 
-
     feature = str(
         data.get("feature", "chat")
     ).strip()
 
-
     if not message:
-
         return api_error(
             "Message is required.",
             400
         )
 
-
-    # =====================================================
-    # SYSTEM-STYLE PROMPT
-    # =====================================================
 
     feature_instruction = {
 
@@ -127,38 +211,47 @@ def chat():
             "Answer naturally and helpfully.",
 
         "coding":
-            "Act as a helpful programming assistant. Explain code clearly and provide correct examples.",
+            "Act as a helpful programming assistant. "
+            "Explain code clearly and provide correct examples.",
 
         "study":
-            "Act as a study assistant. Explain concepts simply and step by step.",
+            "Act as a study assistant. "
+            "Explain concepts simply and step by step.",
 
         "translate":
-            "Act as a translation assistant. Translate accurately while preserving the intended meaning.",
+            "Act as a translation assistant. "
+            "Translate accurately while preserving the intended meaning.",
 
         "summarize":
-            "Summarize the user's text clearly and keep the important information.",
+            "Summarize the user's text clearly "
+            "while keeping important information.",
 
         "math":
-            "Act as a math solver. Solve the problem carefully and explain the steps.",
+            "Act as a math solver. "
+            "Solve the problem carefully and explain the steps.",
 
         "search":
-            "Answer as an AI assistant. Do not claim to have performed a live web search unless a search tool is actually connected.",
+            "Answer as an AI assistant. "
+            "Do not claim that you performed a live web search "
+            "unless a search tool is actually connected.",
 
         "notes":
-            "Help the user create clear, organized and useful notes.",
+            "Help the user create clear, organized "
+            "and useful notes.",
 
         "voice":
             "Respond naturally as a conversational AI assistant.",
 
         "file":
-            "Explain that file analysis requires an uploaded file when appropriate.",
+            "Help the user with file-related questions. "
+            "If a file is required, ask them to upload it.",
 
         "ocr":
-            "Help with text recognition and explain that an image must be uploaded for OCR.",
+            "Help with text recognition from images. "
+            "If an image is required, ask the user to upload it.",
 
         "editing":
-            "Help the user describe image editing instructions clearly."
-
+            "Help the user describe image editing instructions clearly.",
     }
 
 
@@ -173,40 +266,34 @@ You are MY AI, a helpful personal AI assistant.
 
 {instruction}
 
-Important:
+Important rules:
+
 - Be accurate and useful.
-- If the user asks in Bangla or Banglish, reply naturally in Bangla/Banglish.
-- If the user asks in English, reply in English.
+- If the user asks in Bangla or Banglish,
+  reply naturally in Bangla/Banglish.
+- If the user asks in English,
+  reply in English.
 - Do not mention internal model names.
-- Do not pretend that unavailable tools were used.
-- Keep answers reasonably concise unless more detail is requested.
+- Do not pretend unavailable tools were used.
+- Keep answers reasonably concise unless
+  the user asks for more detail.
+- Be friendly and natural.
 
 User message:
+
 {message}
 """
 
 
     try:
 
-        response = client.models.generate_content(
-
-            model=TEXT_MODEL,
-
-            contents=prompt
+        reply = generate_text_with_fallback(
+            prompt
         )
-
-
-        reply = (
-            response.text
-            if response.text
-            else "I couldn't generate a response."
-        )
-
 
         return jsonify({
             "reply": reply
         })
-
 
     except Exception as error:
 
@@ -215,11 +302,10 @@ User message:
             repr(error)
         )
 
-
         return api_error(
-            "AI request failed: "
-            + str(error),
-            500
+            "AI is temporarily busy. "
+            "Please try again in a few seconds.",
+            503
         )
 
 
@@ -227,27 +313,19 @@ User message:
 # IMAGE ANALYSIS / OCR
 # =========================================================
 
-@app.route(
-    "/api/analyze-image",
-    methods=["POST"]
-)
+@app.route("/api/analyze-image", methods=["POST"])
 def analyze_image():
 
     if not check_client():
-
         return api_error(
             "GEMINI_API_KEY is not configured on the server.",
             500
         )
 
 
-    image = request.files.get(
-        "image"
-    )
-
+    image = request.files.get("image")
 
     if image is None:
-
         return api_error(
             "No image was uploaded.",
             400
@@ -256,9 +334,7 @@ def analyze_image():
 
     image_bytes = image.read()
 
-
     if not image_bytes:
-
         return api_error(
             "The uploaded image is empty.",
             400
@@ -271,10 +347,7 @@ def analyze_image():
     )
 
 
-    if not mime_type.startswith(
-        "image/"
-    ):
-
+    if not mime_type.startswith("image/"):
         return api_error(
             "Please upload a valid image.",
             400
@@ -292,10 +365,6 @@ def analyze_image():
     )
 
 
-    # =====================================================
-    # PROMPT
-    # =====================================================
-
     if ocr_mode:
 
         prompt = """
@@ -304,11 +373,14 @@ Read the text visible in this image.
 Return the recognized text as accurately as possible.
 
 Rules:
-- Preserve the original wording where possible.
+
+- Preserve original wording where possible.
 - Keep line breaks when useful.
-- If there is no readable text, clearly say that.
+- If there is no readable text,
+  clearly say that.
 - Do not invent missing text.
 """
+
 
     else:
 
@@ -324,39 +396,30 @@ Provide:
 5. Useful observations
 
 Be accurate.
-Do not invent details that cannot be seen.
+
+Do not invent details
+that cannot be seen.
 """
+
+
+    contents = [
+        types.Part.from_bytes(
+            data=image_bytes,
+            mime_type=mime_type
+        ),
+        prompt
+    ]
 
 
     try:
 
-        response = client.models.generate_content(
-
-            model=TEXT_MODEL,
-
-            contents=[
-
-                types.Part.from_bytes(
-                    data=image_bytes,
-                    mime_type=mime_type
-                ),
-
-                prompt
-            ]
+        reply = generate_text_with_fallback(
+            contents
         )
-
-
-        reply = (
-            response.text
-            if response.text
-            else "I couldn't analyze this image."
-        )
-
 
         return jsonify({
             "reply": reply
         })
-
 
     except Exception as error:
 
@@ -365,11 +428,9 @@ Do not invent details that cannot be seen.
             repr(error)
         )
 
-
         return api_error(
-            "Image analysis failed: "
-            + str(error),
-            500
+            "Image analysis is temporarily unavailable.",
+            503
         )
 
 
@@ -377,14 +438,10 @@ Do not invent details that cannot be seen.
 # IMAGE GENERATION
 # =========================================================
 
-@app.route(
-    "/api/generate-image",
-    methods=["POST"]
-)
+@app.route("/api/generate-image", methods=["POST"])
 def generate_image():
 
     if not check_client():
-
         return api_error(
             "GEMINI_API_KEY is not configured on the server.",
             500
@@ -402,7 +459,6 @@ def generate_image():
 
 
     if not prompt:
-
         return api_error(
             "Image prompt is required.",
             400
@@ -418,18 +474,10 @@ def generate_image():
             contents=prompt,
 
             config=types.GenerateContentConfig(
-
-                response_modalities=[
-                    "IMAGE"
-                ]
-
+                response_modalities=["IMAGE"]
             )
         )
 
-
-        # =================================================
-        # FIND GENERATED IMAGE
-        # =================================================
 
         for candidate in (
             response.candidates or []
@@ -492,10 +540,9 @@ def generate_image():
             repr(error)
         )
 
-
         return api_error(
-            "Image generation failed: "
-            + str(error),
+            "Image generation failed. "
+            "Please try again.",
             500
         )
 
@@ -504,23 +551,22 @@ def generate_image():
 # HEALTH CHECK
 # =========================================================
 
-@app.route(
-    "/api/health",
-    methods=["GET"]
-)
+@app.route("/api/health", methods=["GET"])
 def health():
 
     return jsonify({
 
-        "status": "online",
+        "status":
+            "online",
 
-        "my_ai": True,
+        "my_ai":
+            True,
 
         "gemini_configured":
             bool(client),
 
-        "text_model":
-            TEXT_MODEL,
+        "text_models":
+            TEXT_MODELS,
 
         "image_model":
             IMAGE_MODEL
@@ -528,7 +574,7 @@ def health():
 
 
 # =========================================================
-# 404 API HANDLER
+# 404
 # =========================================================
 
 @app.errorhandler(404)
@@ -537,15 +583,15 @@ def not_found(error):
     if request.path.startswith("/api/"):
 
         return jsonify({
-            "error": "API endpoint not found."
+            "error":
+                "API endpoint not found."
         }), 404
-
 
     return error
 
 
 # =========================================================
-# SERVER
+# RUN
 # =========================================================
 
 if __name__ == "__main__":
@@ -557,12 +603,8 @@ if __name__ == "__main__":
         )
     )
 
-
     app.run(
-
         host="0.0.0.0",
-
         port=port,
-
         debug=False
-        )
+            )
