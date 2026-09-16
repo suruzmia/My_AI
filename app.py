@@ -8,7 +8,7 @@ from google.genai import types
 app = Flask(__name__, static_folder='.', template_folder='.')
 CORS(app)
 
-# Render Environment Variable থেকে API Key অটো লোড হবে
+# Render Environment Variable থেকে API Key অটোমেটিক নেবে
 api_key = os.environ.get("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key) if api_key else genai.Client()
 
@@ -65,11 +65,11 @@ def analyze_image():
 @app.route('/api/analyze-pdf', methods=['POST'])
 def analyze_pdf():
     try:
-        prompt = request.form.get('prompt', 'Summarize this document')
+        prompt = request.form.get('prompt', 'Summarize this PDF document')
         file = request.files.get('file')
         
         if not file:
-            return jsonify({"success": False, "error": "No file uploaded"}), 400
+            return jsonify({"success": False, "error": "No PDF file uploaded"}), 400
             
         file_bytes = file.read()
 
@@ -89,21 +89,28 @@ def generate_image():
     try:
         data = request.json or {}
         prompt = data.get('prompt', '')
-        
+        if not prompt:
+            return jsonify({"success": False, "error": "Prompt is required"}), 400
+
+        # Imagen 3 API Call Fixed
         result = client.models.generate_images(
             model='imagen-3.0-generate-002',
             prompt=prompt,
             config=types.GenerateImagesConfig(
                 number_of_images=1,
+                output_mime_type="image/jpeg",
                 aspect_ratio="1:1"
             )
         )
         
-        generated_image = result.generated_images[0]
-        base64_image = base64.b64encode(generated_image.image.image_bytes).decode('utf-8')
-        image_url = f"data:image/png;base64,{base64_image}"
+        if result.generated_images:
+            generated_image = result.generated_images[0]
+            base64_image = base64.b64encode(generated_image.image.image_bytes).decode('utf-8')
+            image_url = f"data:image/jpeg;base64,{base64_image}"
+            return jsonify({"success": True, "image_url": image_url})
+        else:
+            return jsonify({"success": False, "error": "Image generation failed"}), 500
 
-        return jsonify({"success": True, "image_url": image_url})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
