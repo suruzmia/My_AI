@@ -1,4 +1,5 @@
 import os
+
 from flask import Flask, request, jsonify, send_from_directory
 from google import genai
 
@@ -38,13 +39,13 @@ def chat():
 
     try:
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=message
+        interaction = client.interactions.create(
+            model="gemini-3.6-flash",
+            input=message
         )
 
         return jsonify({
-            "reply": response.text
+            "reply": interaction.output_text
         })
 
     except Exception as e:
