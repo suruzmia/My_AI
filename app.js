@@ -6,7 +6,7 @@ let currentFeature = "chat";
 
 
 // ===============================
-// SEND MESSAGE TO MY AI
+// SEND MESSAGE
 // ===============================
 
 async function sendMessage() {
@@ -15,21 +15,15 @@ async function sendMessage() {
 
     if (!text) return;
 
-    // Show user message
     addMessage(text, "user");
 
     input.value = "";
 
-    // Show loading
-    const loading = document.createElement("div");
-
-    loading.className = "message ai-message";
-    loading.textContent = "🤖 Thinking...";
-
-    messages.appendChild(loading);
-
-    messages.scrollTop = messages.scrollHeight;
-
+    const loading = addMessage(
+        "🤖 Thinking...",
+        "ai",
+        true
+    );
 
     try {
 
@@ -50,14 +44,12 @@ async function sendMessage() {
 
         const data = await response.json();
 
-
-        // Remove loading
         loading.remove();
 
 
         if (data.reply) {
 
-            addMessage(data.reply, "ai");
+            typeMessage(data.reply);
 
         } else {
 
@@ -73,7 +65,7 @@ async function sendMessage() {
         loading.remove();
 
         addMessage(
-            "❌ Cannot connect to MY AI server. Please try again.",
+            "❌ Cannot connect to MY AI server.",
             "ai"
         );
 
@@ -85,10 +77,49 @@ async function sendMessage() {
 
 
 // ===============================
+// TYPING EFFECT
+// ===============================
+
+function typeMessage(text) {
+
+    const div = document.createElement("div");
+
+    div.className = "message ai-message";
+
+    messages.appendChild(div);
+
+    let index = 0;
+
+    const speed = 12;
+
+
+    function type() {
+
+        if (index < text.length) {
+
+            div.textContent += text.charAt(index);
+
+            index++;
+
+            messages.scrollTop =
+                messages.scrollHeight;
+
+            setTimeout(type, speed);
+
+        }
+
+    }
+
+    type();
+
+}
+
+
+// ===============================
 // ADD MESSAGE
 // ===============================
 
-function addMessage(text, type) {
+function addMessage(text, type, temporary = false) {
 
     const div = document.createElement("div");
 
@@ -100,9 +131,16 @@ function addMessage(text, type) {
 
     div.textContent = text;
 
+    if (temporary) {
+        div.classList.add("thinking");
+    }
+
     messages.appendChild(div);
 
-    messages.scrollTop = messages.scrollHeight;
+    messages.scrollTop =
+        messages.scrollHeight;
+
+    return div;
 
 }
 
@@ -113,7 +151,10 @@ function addMessage(text, type) {
 
 function handleEnter(event) {
 
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (
+        event.key === "Enter" &&
+        !event.shiftKey
+    ) {
 
         event.preventDefault();
 
@@ -136,12 +177,14 @@ function newChat() {
 
     currentFeature = "chat";
 
-    document.getElementById("pageTitle").textContent = "MY AI";
+    document.getElementById("pageTitle").textContent =
+        "MY AI";
 
     document.getElementById("pageSubtitle").textContent =
         "Your personal AI assistant";
 
-    input.placeholder = "Message MY AI...";
+    input.placeholder =
+        "Message MY AI...";
 
 }
 
@@ -242,8 +285,6 @@ function selectFeature(feature) {
         data[1];
 
 
-    // Change placeholder
-
     const placeholders = {
 
         chat: "Message MY AI...",
@@ -272,16 +313,15 @@ function selectFeature(feature) {
 
         notes: "What note should I create?",
 
-        editing: "Upload an image to edit..."
+        editing: "Describe your image edit..."
 
     };
 
 
     input.placeholder =
-        placeholders[feature] || "Message MY AI...";
+        placeholders[feature] ||
+        "Message MY AI...";
 
-
-    // Close mobile sidebar
 
     if (window.innerWidth <= 800) {
 
@@ -295,20 +335,148 @@ function selectFeature(feature) {
 
 
 // ===============================
-// MOBILE SIDEBAR
+// IMAGE GENERATION
 // ===============================
 
-function toggleSidebar() {
+async function generateImage(prompt) {
 
-    document
-        .getElementById("sidebar")
-        .classList.toggle("open");
+    if (!prompt) return;
+
+
+    addMessage(
+        "🎨 " + prompt,
+        "user"
+    );
+
+
+    const loading = addMessage(
+        "🎨 Creating your image...",
+        "ai",
+        true
+    );
+
+
+    try {
+
+        const response = await fetch(
+            "/api/generate-image",
+            {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    prompt: prompt
+                })
+
+            }
+        );
+
+
+        const data =
+            await response.json();
+
+
+        loading.remove();
+
+
+        if (data.image) {
+
+            showGeneratedImage(
+                data.image,
+                data.mime_type
+            );
+
+        } else {
+
+            addMessage(
+                "❌ " +
+                (data.error ||
+                    "Image generation failed."),
+                "ai"
+            );
+
+        }
+
+    } catch (error) {
+
+        loading.remove();
+
+        addMessage(
+            "❌ Could not generate image.",
+            "ai"
+        );
+
+        console.error(error);
+
+    }
 
 }
 
 
 // ===============================
-// OPEN FILE
+// SHOW GENERATED IMAGE
+// ===============================
+
+function showGeneratedImage(
+    base64,
+    mimeType
+) {
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.className =
+        "message ai-message image-result";
+
+
+    const img =
+        document.createElement("img");
+
+    img.src =
+        "data:" +
+        mimeType +
+        ";base64," +
+        base64;
+
+    img.alt =
+        "MY AI generated image";
+
+
+    const download =
+        document.createElement("a");
+
+    download.href =
+        img.src;
+
+    download.download =
+        "my-ai-image.png";
+
+    download.textContent =
+        "⬇️ Save Image";
+
+
+    wrapper.appendChild(img);
+
+    wrapper.appendChild(
+        document.createElement("br")
+    );
+
+    wrapper.appendChild(download);
+
+    messages.appendChild(wrapper);
+
+    messages.scrollTop =
+        messages.scrollHeight;
+
+}
+
+
+// ===============================
+// FILE
 // ===============================
 
 function openFile() {
@@ -318,35 +486,24 @@ function openFile() {
 }
 
 
-// ===============================
-// FILE SELECTED
-// ===============================
-
 function fileSelected(event) {
 
-    const file = event.target.files[0];
+    const file =
+        event.target.files[0];
 
     if (!file) return;
 
 
     addMessage(
-        "📎 Selected file: " + file.name,
+        "📎 " + file.name,
         "user"
     );
 
 
-    // Show file information
-
-    setTimeout(() => {
-
-        addMessage(
-            "📄 File received: " +
-            file.name +
-            "\n\nFile analysis will be connected to the MY AI backend next.",
-            "ai"
-        );
-
-    }, 500);
+    addMessage(
+        "📄 File received. File analysis backend will be connected next.",
+        "ai"
+    );
 
 }
 
@@ -378,52 +535,59 @@ function startVoice() {
         new SpeechRecognition();
 
 
-    recognition.lang = "bn-BD";
+    recognition.lang =
+        "bn-BD";
 
-    recognition.continuous = false;
+    recognition.continuous =
+        false;
 
-    recognition.interimResults = false;
-
-
-    recognition.onstart = function () {
-
-        input.placeholder = "🎙️ Listening...";
-
-    };
+    recognition.interimResults =
+        false;
 
 
-    recognition.onresult = function (event) {
+    recognition.onstart =
+        function () {
 
-        const text =
-            event.results[0][0].transcript;
+            input.placeholder =
+                "🎙️ Listening...";
 
-        input.value = text;
-
-        input.placeholder =
-            "Message MY AI...";
-
-    };
+        };
 
 
-    recognition.onerror = function () {
+    recognition.onresult =
+        function (event) {
 
-        input.placeholder =
-            "Message MY AI...";
+            input.value =
+                event.results[0][0]
+                    .transcript;
 
-        addMessage(
-            "❌ Voice input failed. Please try again.",
-            "ai"
-        );
+            input.placeholder =
+                "Message MY AI...";
 
-    };
+        };
 
 
-    recognition.onend = function () {
+    recognition.onerror =
+        function () {
 
-        input.placeholder =
-            "Message MY AI...";
+            input.placeholder =
+                "Message MY AI...";
 
-    };
+            addMessage(
+                "❌ Voice input failed.",
+                "ai"
+            );
+
+        };
+
+
+    recognition.onend =
+        function () {
+
+            input.placeholder =
+                "Message MY AI...";
+
+        };
 
 
     recognition.start();
@@ -432,32 +596,65 @@ function startVoice() {
 
 
 // ===============================
-// INITIAL MESSAGE
+// SIDEBAR
 // ===============================
 
-function showWelcomeMessage() {
+function toggleSidebar() {
 
-    if (messages.children.length === 0) {
-
-        // Keep chat clean initially.
-        // User can start chatting immediately.
-
-    }
+    document
+        .getElementById("sidebar")
+        .classList.toggle("open");
 
 }
 
 
 // ===============================
-// START APP
+// IMAGE TILE INPUT
 // ===============================
 
 document.addEventListener(
     "DOMContentLoaded",
     function () {
 
-        showWelcomeMessage();
-
         input.focus();
+
+
+        // Intercept send button for image mode
+
+        const originalSend =
+            document.querySelector(
+                ".send-btn"
+            );
+
+
+        if (originalSend) {
+
+            originalSend.addEventListener(
+                "click",
+                function () {
+
+                    if (
+                        currentFeature ===
+                        "image"
+                    ) {
+
+                        const prompt =
+                            input.value.trim();
+
+                        if (!prompt) return;
+
+                        input.value = "";
+
+                        generateImage(
+                            prompt
+                        );
+
+                    }
+
+                }
+            );
+
+        }
 
     }
 );
