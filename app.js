@@ -1,63 +1,102 @@
+// =====================================================
+// MY AI - COMPLETE APP.JS
+// Chat + Commands + Image + Voice + Download
+// =====================================================
+
+// =========================
+// GLOBAL VARIABLES
+// =========================
+
 let currentUser = null;
 let currentChat = [];
 let selectedFile = null;
 
 
-/* =========================
-   DOM
-========================= */
+// =========================
+// DOM ELEMENTS
+// =========================
 
-const messages = document.getElementById("messages");
-const emptyState = document.getElementById("emptyState");
-const userInput = document.getElementById("userInput");
-const commandBox = document.getElementById("commandBox");
-const fileInput = document.getElementById("fileInput");
+const messages =
+    document.getElementById("messages");
 
-const sidebar = document.getElementById("sidebar");
-const sidebarOverlay = document.getElementById("sidebarOverlay");
+const emptyState =
+    document.getElementById("emptyState");
 
-const profileModal = document.getElementById("profileModal");
-const loginModal = document.getElementById("loginModal");
+const userInput =
+    document.getElementById("userInput");
 
-const toast = document.getElementById("toast");
+const commandBox =
+    document.getElementById("commandBox");
+
+const fileInput =
+    document.getElementById("fileInput");
+
+const chatHistory =
+    document.getElementById("chatHistory");
+
+const sidebar =
+    document.getElementById("sidebar");
+
+const sidebarOverlay =
+    document.getElementById("sidebarOverlay");
+
+const profileModal =
+    document.getElementById("profileModal");
+
+const loginModal =
+    document.getElementById("loginModal");
+
+const toast =
+    document.getElementById("toast");
 
 
-/* =========================
-   INIT
-========================= */
+// =========================
+// PAGE LOAD
+// =========================
 
 document.addEventListener("DOMContentLoaded", () => {
 
     loadLocalUser();
+
     loadHistory();
 
-    userInput.addEventListener("input", () => {
+    updateProfileUI();
+
+    if (userInput) {
         handleInput(userInput);
-    });
+    }
 
 });
 
 
-/* =========================
-   TOAST
-========================= */
+// =========================
+// SAFE API RESPONSE
+// =========================
 
-function showToast(message) {
+async function readApiResponse(response) {
 
-    if (!toast) return;
+    const contentType =
+        response.headers.get("content-type") || "";
 
-    toast.textContent = message;
-    toast.classList.add("show");
+    if (contentType.includes("application/json")) {
 
-    setTimeout(() => {
-        toast.classList.remove("show");
-    }, 2500);
+        return await response.json();
+
+    }
+
+    const text =
+        await response.text();
+
+    return {
+        error:
+            text || "Server returned an invalid response."
+    };
 }
 
 
-/* =========================
-   SIDEBAR
-========================= */
+// =========================
+// SIDEBAR
+// =========================
 
 function toggleSidebar() {
 
@@ -66,43 +105,27 @@ function toggleSidebar() {
     sidebar.classList.toggle("open");
 
     if (sidebarOverlay) {
-        sidebarOverlay.classList.toggle(
-            "show",
-            sidebar.classList.contains("open")
-        );
+        sidebarOverlay.classList.toggle("show");
     }
 }
 
 
-function closeMobileSidebar() {
-
-    sidebar?.classList.remove("open");
-    sidebarOverlay?.classList.remove("show");
-
-}
-
-
-/* =========================
-   NEW CHAT
-========================= */
+// =========================
+// NEW CHAT
+// =========================
 
 function newChat() {
 
     currentChat = [];
 
-    messages.innerHTML = "";
+    if (messages) {
+        messages.innerHTML = "";
+    }
 
-    const empty = document.createElement("div");
-
-    empty.className = "empty-state";
-
-    empty.innerHTML = `
-        <div class="empty-icon">🤖</div>
-        <h2>How can I help you?</h2>
-        <p>Ask anything or use <strong>/</strong> for AI commands.</p>
-    `;
-
-    messages.appendChild(empty);
+    if (emptyState) {
+        messages.appendChild(emptyState);
+        emptyState.style.display = "flex";
+    }
 
     selectedFile = null;
 
@@ -110,40 +133,53 @@ function newChat() {
         fileInput.value = "";
     }
 
+    if (userInput) {
+        userInput.value = "";
+        userInput.style.height = "auto";
+    }
+
     hideCommands();
 
-    closeMobileSidebar();
+    showToast("New chat started");
 
-    userInput.focus();
 }
 
 
-/* =========================
-   INPUT
-========================= */
+// =========================
+// INPUT HANDLER
+// =========================
 
-function handleInput(textarea) {
+function handleInput(element) {
 
-    autoResize(textarea);
+    if (!element) return;
 
-    const value = textarea.value;
+    element.style.height = "auto";
 
-    if (value.trim().startsWith("/")) {
+    element.style.height =
+        Math.min(
+            element.scrollHeight,
+            160
+        ) + "px";
+
+    const value =
+        element.value.trim();
+
+    if (value.startsWith("/")) {
+
         showCommands(value);
+
     } else {
+
         hideCommands();
+
     }
+
 }
 
 
-function autoResize(textarea) {
-
-    textarea.style.height = "auto";
-
-    textarea.style.height =
-        Math.min(textarea.scrollHeight, 160) + "px";
-}
-
+// =========================
+// ENTER KEY
+// =========================
 
 function handleEnter(event) {
 
@@ -152,52 +188,46 @@ function handleEnter(event) {
         event.preventDefault();
 
         sendMessage();
+
     }
+
 }
 
 
-/* =========================
-   COMMANDS
-========================= */
+// =========================
+// COMMAND BOX
+// =========================
 
-function showCommands(value) {
+function showCommands(value = "/") {
 
     if (!commandBox) return;
 
-    const query = value
-        .trim()
-        .toLowerCase();
-
-    if (!query.startsWith("/")) {
-        hideCommands();
-        return;
-    }
+    commandBox.style.display = "block";
 
     const buttons =
         commandBox.querySelectorAll("button");
 
-    let visible = 0;
+    const command =
+        value.toLowerCase();
 
     buttons.forEach(button => {
 
-        const command =
-            button.querySelector("strong")?.textContent
-            ?.toLowerCase() || "";
+        const strong =
+            button.querySelector("strong");
 
-        if (
-            query === "/" ||
-            command.startsWith(query)
-        ) {
-            button.style.display = "flex";
-            visible++;
-        } else {
-            button.style.display = "none";
-        }
+        if (!strong) return;
+
+        const name =
+            strong.textContent
+                .toLowerCase();
+
+        button.style.display =
+            name.startsWith(command)
+                ? "flex"
+                : "none";
 
     });
 
-    commandBox.style.display =
-        visible > 0 ? "block" : "none";
 }
 
 
@@ -206,110 +236,623 @@ function hideCommands() {
     if (commandBox) {
         commandBox.style.display = "none";
     }
+
 }
 
+
+// =========================
+// USE COMMAND
+// =========================
 
 function useCommand(command) {
 
+    if (!userInput) return;
+
     userInput.value = command;
 
-    hideCommands();
-
-    autoResize(userInput);
-
     userInput.focus();
+
+    handleInput(userInput);
+
 }
 
 
-/* =========================
-   SEND MESSAGE
-========================= */
+// =========================
+// SEND MESSAGE
+// =========================
 
 async function sendMessage() {
 
-    const text = userInput.value.trim();
+    if (!userInput) return;
 
-    if (!text && !selectedFile) {
-        return;
-    }
+    const message =
+        userInput.value.trim();
+
+    if (!message) return;
+
+    userInput.value = "";
+
+    userInput.style.height = "auto";
 
     hideCommands();
 
-    if (emptyState) {
-        emptyState.remove();
+    // =====================
+    // /HELP
+    // =====================
+
+    if (
+        message.toLowerCase() === "/help"
+    ) {
+
+        addMessage(
+            "user",
+            message
+        );
+
+        addMessage(
+            "assistant",
+            `🤖 MY AI Commands
+
+/image [prompt]
+Generate an image
+
+/voice [text]
+Generate AI voice
+
+/analyze
+Analyze an attached image
+
+/translate [text]
+Translate text
+
+/code [request]
+Coding assistant
+
+/help
+Show commands`
+        );
+
+        return;
     }
 
-    const sentText = text;
+
+    // =====================
+    // ADD USER MESSAGE
+    // =====================
 
     addMessage(
         "user",
-        sentText || "📎 File attached"
+        message
     );
 
     currentChat.push({
         role: "user",
-        content: sentText
+        content: message
     });
 
-    userInput.value = "";
-    autoResize(userInput);
 
-    const file = selectedFile;
+    // =====================
+    // /VOICE
+    // =====================
 
-    selectedFile = null;
+    if (
+        message
+            .toLowerCase()
+            .startsWith("/voice")
+    ) {
 
-    if (fileInput) {
-        fileInput.value = "";
+        const voiceText =
+            message
+                .substring(6)
+                .trim();
+
+        if (!voiceText) {
+
+            addMessage(
+                "assistant",
+                "🔊 Example:\n/voice Hello, how are you?"
+            );
+
+            return;
+        }
+
+        await generateVoice(
+            voiceText
+        );
+
+        return;
     }
 
-    const loading = addLoadingMessage();
+
+    // =====================
+    // /IMAGE
+    // =====================
+
+    if (
+        message
+            .toLowerCase()
+            .startsWith("/image")
+    ) {
+
+        const prompt =
+            message
+                .substring(6)
+                .trim();
+
+        if (!prompt) {
+
+            addMessage(
+                "assistant",
+                "🖼️ Example:\n/image A futuristic city at night"
+            );
+
+            return;
+        }
+
+        await generateImage(
+            prompt
+        );
+
+        return;
+    }
+
+
+    // =====================
+    // /ANALYZE
+    // =====================
+
+    if (
+        message
+            .toLowerCase()
+            .startsWith("/analyze")
+    ) {
+
+        if (!selectedFile) {
+
+            addMessage(
+                "assistant",
+                "📸 Please attach an image first, then use /analyze."
+            );
+
+            return;
+        }
+
+        await analyzeImage();
+
+        return;
+    }
+
+
+    // =====================
+    // NORMAL CHAT
+    // =====================
+
+    const loading =
+        addLoadingMessage(
+            "Thinking..."
+        );
 
     try {
 
-        let response;
-
-        /*
-         * IMAGE COMMAND
-         */
-
-        if (
-            sentText.toLowerCase().startsWith("/image ")
-        ) {
-
-            const prompt =
-                sentText.substring(7).trim();
-
-            response = await fetch(
-                "/api/generate-image",
+        const response =
+            await fetch(
+                "/api/chat",
                 {
                     method: "POST",
+
                     headers: {
                         "Content-Type":
                             "application/json"
                     },
+
+                    body: JSON.stringify({
+
+                        message: message,
+
+                        history:
+                            currentChat.slice(
+                                -20
+                            )
+
+                    })
+
+                }
+            );
+
+        const data =
+            await readApiResponse(
+                response
+            );
+
+        loading.remove();
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "AI request failed."
+            );
+
+        }
+
+        const reply =
+            data.reply ||
+            data.response ||
+            data.text ||
+            "No response received.";
+
+        addMessage(
+            "assistant",
+            reply
+        );
+
+        currentChat.push({
+            role: "assistant",
+            content: reply
+        });
+
+        saveCurrentChat();
+
+    } catch (error) {
+
+        loading.remove();
+
+        addMessage(
+            "assistant",
+            "❌ " + error.message
+        );
+
+    }
+
+}
+
+
+// =====================================================
+// VOICE GENERATION
+// =====================================================
+
+async function generateVoice(text) {
+
+    const loading =
+        addLoadingMessage(
+            "Generating voice..."
+        );
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/voice",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        text: text
+                    })
+                }
+            );
+
+        const data =
+            await readApiResponse(
+                response
+            );
+
+        loading.remove();
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Voice generation failed."
+            );
+
+        }
+
+        if (!data.audio) {
+
+            throw new Error(
+                "No audio was returned."
+            );
+
+        }
+
+
+        // =====================
+        // CREATE AUDIO
+        // =====================
+
+        const mimeType =
+            data.mime_type ||
+            "audio/mpeg";
+
+        const audioData =
+            "data:" +
+            mimeType +
+            ";base64," +
+            data.audio;
+
+
+        // =====================
+        // MESSAGE ROW
+        // =====================
+
+        const row =
+            document.createElement(
+                "div"
+            );
+
+        row.className =
+            "message-row assistant";
+
+
+        const bubble =
+            document.createElement(
+                "div"
+            );
+
+        bubble.className =
+            "message-bubble";
+
+
+        // =====================
+        // TITLE
+        // =====================
+
+        const title =
+            document.createElement(
+                "div"
+            );
+
+        title.textContent =
+            "🔊 MY AI Voice";
+
+        title.style.fontWeight =
+            "600";
+
+        title.style.marginBottom =
+            "10px";
+
+
+        // =====================
+        // AUDIO PLAYER
+        // =====================
+
+        const audio =
+            document.createElement(
+                "audio"
+            );
+
+        audio.controls = true;
+
+        audio.autoplay = true;
+
+        audio.preload = "auto";
+
+        audio.src =
+            audioData;
+
+        audio.style.width =
+            "100%";
+
+        audio.style.maxWidth =
+            "350px";
+
+
+        // =====================
+        // DOWNLOAD BUTTON
+        // =====================
+
+        const download =
+            document.createElement(
+                "a"
+            );
+
+        download.href =
+            audioData;
+
+        download.download =
+            "MY-AI-Voice.mp3";
+
+        download.textContent =
+            "⬇️ Download Voice";
+
+        download.style.display =
+            "inline-block";
+
+        download.style.marginTop =
+            "10px";
+
+        download.style.padding =
+            "9px 14px";
+
+        download.style.borderRadius =
+            "10px";
+
+        download.style.textDecoration =
+            "none";
+
+        download.style.fontSize =
+            "14px";
+
+        download.style.fontWeight =
+            "600";
+
+        download.style.background =
+            "rgba(255,255,255,0.08)";
+
+        download.style.color =
+            "inherit";
+
+
+        // =====================
+        // TEXT
+        // =====================
+
+        const textElement =
+            document.createElement(
+                "div"
+            );
+
+        textElement.textContent =
+            text;
+
+        textElement.style.marginBottom =
+            "12px";
+
+
+        // =====================
+        // APPEND
+        // =====================
+
+        bubble.appendChild(
+            title
+        );
+
+        bubble.appendChild(
+            textElement
+        );
+
+        bubble.appendChild(
+            audio
+        );
+
+        bubble.appendChild(
+            download
+        );
+
+        row.appendChild(
+            bubble
+        );
+
+        messages.appendChild(
+            row
+        );
+
+
+        // =====================
+        // SCROLL
+        // =====================
+
+        messages.scrollTop =
+            messages.scrollHeight;
+
+
+    } catch (error) {
+
+        loading.remove();
+
+        addMessage(
+            "assistant",
+            "❌ Voice generation failed: " +
+            error.message
+        );
+
+    }
+
+}
+
+
+// =====================================================
+// IMAGE GENERATION
+// =====================================================
+
+async function generateImage(prompt) {
+
+    const loading =
+        addLoadingMessage(
+            "Generating image..."
+        );
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/generate-image",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
                     body: JSON.stringify({
                         prompt: prompt
                     })
                 }
             );
 
+        const data =
+            await readApiResponse(
+                response
+            );
+
+        loading.remove();
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Image generation failed."
+            );
+
         }
 
-        /*
-         * IMAGE ANALYSIS
-         */
+        if (!data.image) {
 
-        else if (
-            sentText.toLowerCase().startsWith("/analyze")
-            && file
-        ) {
+            throw new Error(
+                "No image returned."
+            );
 
-            const formData =
-                new FormData();
+        }
 
-            formData.append("image", file);
+        addImageMessage(
+            data.image
+        );
 
-            response = await fetch(
+    } catch (error) {
+
+        loading.remove();
+
+        addMessage(
+            "assistant",
+            "❌ Image generation error: " +
+            error.message
+        );
+
+    }
+
+}
+
+
+// =====================================================
+// IMAGE ANALYSIS
+// =====================================================
+
+async function analyzeImage() {
+
+    const loading =
+        addLoadingMessage(
+            "Analyzing image..."
+        );
+
+    try {
+
+        const formData =
+            new FormData();
+
+        formData.append(
+            "image",
+            selectedFile
+        );
+
+        const response =
+            await fetch(
                 "/api/analyze-image",
                 {
                     method: "POST",
@@ -317,379 +860,294 @@ async function sendMessage() {
                 }
             );
 
-        }
-
-        /*
-         * NORMAL CHAT
-         */
-
-        else {
-
-            response = await fetch(
-                "/api/chat",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-                    body: JSON.stringify({
-                        message: sentText,
-                        history: currentChat
-                    })
-                }
+        const data =
+            await readApiResponse(
+                response
             );
 
-        }
-
-        removeLoadingMessage(loading);
-
-        const data =
-            await readApiResponse(response);
+        loading.remove();
 
         if (!response.ok) {
 
             throw new Error(
-                data?.error ||
-                data?.message ||
-                "Request failed"
+                data.error ||
+                "Image analysis failed."
             );
-        }
-
-
-        /*
-         * IMAGE RESPONSE
-         */
-
-        if (data.image) {
-
-            addImageMessage(
-                data.image
-            );
-
-            currentChat.push({
-                role: "assistant",
-                content: "[Generated image]"
-            });
 
         }
 
-        /*
-         * NORMAL RESPONSE
-         */
-
-        else {
-
-            const reply =
-                data.reply ||
-                data.response ||
-                data.text ||
-                "No response received.";
-
-            addMessage(
-                "ai",
-                reply
-            );
-
-            currentChat.push({
-                role: "assistant",
-                content: reply
-            });
-
-        }
-
-        saveCurrentChat();
+        addMessage(
+            "assistant",
+            data.reply ||
+            "No analysis received."
+        );
 
     } catch (error) {
 
-        removeLoadingMessage(loading);
-
-        console.error(error);
+        loading.remove();
 
         addMessage(
-            "ai",
-            "❌ " + error.message
+            "assistant",
+            "❌ Image analysis error: " +
+            error.message
         );
 
     }
 
-    scrollMessages();
 }
 
 
-/* =========================
-   API RESPONSE
-========================= */
+// =====================================================
+// ADD NORMAL MESSAGE
+// =====================================================
 
-async function readApiResponse(response) {
+function addMessage(
+    role,
+    text
+) {
 
-    const text =
-        await response.text();
+    if (emptyState) {
+        emptyState.style.display =
+            "none";
+    }
 
-    const contentType =
-        response.headers.get(
-            "content-type"
-        ) || "";
+    const row =
+        document.createElement(
+            "div"
+        );
+
+    row.className =
+        "message-row " +
+        role;
+
+
+    const bubble =
+        document.createElement(
+            "div"
+        );
+
+    bubble.className =
+        "message-bubble";
+
+
+    // Prevent HTML injection
+    bubble.textContent =
+        text;
+
+
+    row.appendChild(
+        bubble
+    );
+
+    messages.appendChild(
+        row
+    );
+
+    messages.scrollTop =
+        messages.scrollHeight;
+
+}
+
+
+// =====================================================
+// LOADING
+// =====================================================
+
+function addLoadingMessage(
+    text = "Thinking..."
+) {
+
+    if (emptyState) {
+        emptyState.style.display =
+            "none";
+    }
+
+    const row =
+        document.createElement(
+            "div"
+        );
+
+    row.className =
+        "message-row assistant";
+
+
+    const bubble =
+        document.createElement(
+            "div"
+        );
+
+    bubble.className =
+        "message-bubble loading";
+
+
+    bubble.textContent =
+        text;
+
+
+    row.appendChild(
+        bubble
+    );
+
+    messages.appendChild(
+        row
+    );
+
+    messages.scrollTop =
+        messages.scrollHeight;
+
+
+    return row;
+}
+
+
+// =====================================================
+// IMAGE MESSAGE
+// =====================================================
+
+function addImageMessage(
+    imageData
+) {
+
+    if (emptyState) {
+        emptyState.style.display =
+            "none";
+    }
+
+    const row =
+        document.createElement(
+            "div"
+        );
+
+    row.className =
+        "message-row assistant";
+
+
+    const bubble =
+        document.createElement(
+            "div"
+        );
+
+    bubble.className =
+        "message-bubble";
+
+
+    const image =
+        document.createElement(
+            "img"
+        );
+
 
     if (
-        contentType.includes(
-            "application/json"
+        imageData.startsWith(
+            "http"
         )
     ) {
 
-        try {
-            return JSON.parse(text);
-        } catch {
-            throw new Error(
-                "Server returned invalid JSON."
-            );
-        }
+        image.src =
+            imageData;
+
+    } else {
+
+        image.src =
+            "data:image/png;base64," +
+            imageData;
+
     }
 
-    if (
-        text.trim().startsWith("<")
-    ) {
 
-        throw new Error(
-            `Server returned an HTML page instead of JSON. HTTP ${response.status}`
+    image.style.maxWidth =
+        "100%";
+
+    image.style.borderRadius =
+        "12px";
+
+
+    const download =
+        document.createElement(
+            "a"
         );
-    }
 
-    return {
-        error:
-            text ||
-            `HTTP ${response.status}`
-    };
-}
+    download.href =
+        image.src;
 
+    download.download =
+        "MY-AI-Image.png";
 
-/* =========================
-   MESSAGE UI
-========================= */
+    download.textContent =
+        "⬇️ Download Image";
 
-function addMessage(role, text) {
+    download.style.display =
+        "inline-block";
 
-    const row =
-        document.createElement("div");
-
-    row.className =
-        `message-row ${role}`;
-
-    const bubble =
-        document.createElement("div");
-
-    bubble.className =
-        "message-bubble";
-
-    bubble.innerHTML =
-        formatMessage(text);
-
-    row.appendChild(bubble);
-
-    messages.appendChild(row);
-
-    scrollMessages();
-
-    return row;
-}
-
-
-function formatMessage(text) {
-
-    if (!text) return "";
-
-    let safe =
-        String(text)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-
-    /*
-     * Basic code block formatting
-     */
-
-    safe = safe.replace(
-        /```([\s\S]*?)```/g,
-        "<pre><code>$1</code></pre>"
-    );
-
-    safe = safe.replace(
-        /\n/g,
-        "<br>"
-    );
-
-    return safe;
-}
-
-
-/* =========================
-   LOADING
-========================= */
-
-function addLoadingMessage() {
-
-    const row =
-        document.createElement("div");
-
-    row.className =
-        "message-row ai loading-message";
-
-    const bubble =
-        document.createElement("div");
-
-    bubble.className =
-        "message-bubble";
-
-    bubble.textContent =
-        "Thinking...";
-
-    row.appendChild(bubble);
-
-    messages.appendChild(row);
-
-    scrollMessages();
-
-    return row;
-}
-
-
-function removeLoadingMessage(element) {
-
-    if (element) {
-        element.remove();
-    }
-}
-
-
-/* =========================
-   IMAGE MESSAGE
-========================= */
-
-function addImageMessage(image) {
-
-    const row =
-        document.createElement("div");
-
-    row.className =
-        "message-row ai";
-
-    const bubble =
-        document.createElement("div");
-
-    bubble.className =
-        "message-bubble";
-
-    const img =
-        document.createElement("img");
-
-    img.src =
-        image.startsWith("data:")
-            ? image
-            : "data:image/png;base64," + image;
-
-    img.style.maxWidth = "100%";
-    img.style.borderRadius = "12px";
-    img.style.display = "block";
-
-    bubble.appendChild(img);
-
-    const saveButton =
-        document.createElement("button");
-
-    saveButton.textContent =
-        "⬇ Save Image";
-
-    saveButton.style.marginTop =
+    download.style.marginTop =
         "10px";
 
-    saveButton.style.padding =
+    download.style.padding =
         "8px 12px";
 
-    saveButton.style.borderRadius =
-        "9px";
+    download.style.textDecoration =
+        "none";
 
-    saveButton.style.background =
-        "#202a3a";
-
-    saveButton.style.color =
-        "#fff";
-
-    saveButton.onclick =
-        () => saveImage(img.src);
 
     bubble.appendChild(
-        saveButton
+        image
     );
 
-    row.appendChild(bubble);
+    bubble.appendChild(
+        download
+    );
 
-    messages.appendChild(row);
+    row.appendChild(
+        bubble
+    );
 
-    scrollMessages();
+    messages.appendChild(
+        row
+    );
+
+    messages.scrollTop =
+        messages.scrollHeight;
+
 }
 
 
-function saveImage(src) {
-
-    const link =
-        document.createElement("a");
-
-    link.href = src;
-
-    link.download =
-        "my-ai-image.png";
-
-    link.click();
-}
-
-
-/* =========================
-   FILE
-========================= */
+// =====================================================
+// FILE UPLOAD
+// =====================================================
 
 function openFile() {
 
-    fileInput?.click();
+    if (fileInput) {
+        fileInput.click();
+    }
+
 }
 
 
 function fileSelected(event) {
 
-    const file =
-        event.target.files?.[0];
+    const files =
+        event.target.files;
 
-    if (!file) return;
+    if (!files || !files.length) {
+        return;
+    }
 
-    selectedFile = file;
+    selectedFile =
+        files[0];
 
     showToast(
-        `Selected: ${file.name}`
+        "📎 " +
+        selectedFile.name +
+        " attached"
     );
 
-    /*
-     * Automatically show command
-     * for image analysis.
-     */
-
-    if (
-        file.type.startsWith("image/")
-        &&
-        !userInput.value.trim()
-    ) {
-
-        userInput.value =
-            "/analyze ";
-
-        autoResize(userInput);
-
-        userInput.focus();
-    }
 }
 
 
-/* =========================
-   VOICE INPUT
-========================= */
+// =====================================================
+// VOICE INPUT
+// =====================================================
 
 function startVoice() {
 
@@ -706,6 +1164,7 @@ function startVoice() {
         return;
     }
 
+
     const recognition =
         new SpeechRecognition();
 
@@ -715,333 +1174,92 @@ function startVoice() {
     recognition.interimResults =
         false;
 
-    recognition.maxAlternatives =
-        1;
+    recognition.continuous =
+        false;
 
-    recognition.onstart = () => {
 
-        showToast(
-            "🎙️ Listening..."
-        );
+    showToast(
+        "🎙️ Listening..."
+    );
 
-    };
+
+    recognition.start();
+
 
     recognition.onresult =
-        event => {
+        function(event) {
 
-            const transcript =
+            const text =
                 event.results[0][0]
                     .transcript;
 
             userInput.value =
-                transcript;
+                text;
 
-            autoResize(userInput);
+            handleInput(
+                userInput
+            );
 
         };
+
 
     recognition.onerror =
-        () => {
+        function() {
 
             showToast(
-                "Voice input failed."
+                "❌ Voice input failed."
             );
 
         };
 
-    recognition.start();
 }
 
 
-/* =========================
-   CHAT HISTORY
-========================= */
-
-function saveCurrentChat() {
-
-    if (!currentChat.length) {
-        return;
-    }
-
-    const histories =
-        JSON.parse(
-            localStorage.getItem(
-                "my_ai_chats"
-            ) || "[]"
-        );
-
-    const firstUser =
-        currentChat.find(
-            item => item.role === "user"
-        );
-
-    const title =
-        firstUser?.content
-            ?.substring(0, 40)
-            || "New Chat";
-
-    histories.unshift({
-        id: Date.now(),
-        title: title,
-        messages: currentChat
-    });
-
-    /*
-     * Keep latest 30 chats
-     */
-
-    const unique =
-        histories.filter(
-            (item, index, array) =>
-                index ===
-                array.findIndex(
-                    x => x.title === item.title
-                )
-        );
-
-    localStorage.setItem(
-        "my_ai_chats",
-        JSON.stringify(
-            unique.slice(0, 30)
-        )
-    );
-
-    loadHistory();
-}
-
-
-function loadHistory() {
-
-    const historyElement =
-        document.getElementById(
-            "chatHistory"
-        );
-
-    if (!historyElement) return;
-
-    historyElement.innerHTML = "";
-
-    const histories =
-        JSON.parse(
-            localStorage.getItem(
-                "my_ai_chats"
-            ) || "[]"
-        );
-
-    histories.forEach(chat => {
-
-        const button =
-            document.createElement(
-                "button"
-            );
-
-        button.className =
-            "history-item";
-
-        button.textContent =
-            chat.title;
-
-        button.onclick =
-            () => openSavedChat(chat);
-
-        historyElement.appendChild(
-            button
-        );
-
-    });
-}
-
-
-function openSavedChat(chat) {
-
-    currentChat =
-        chat.messages || [];
-
-    messages.innerHTML = "";
-
-    currentChat.forEach(message => {
-
-        if (
-            message.role === "user"
-            ||
-            message.role === "assistant"
-        ) {
-
-            addMessage(
-                message.role === "assistant"
-                    ? "ai"
-                    : "user",
-                message.content
-            );
-
-        }
-
-    });
-
-    closeMobileSidebar();
-
-    scrollMessages();
-}
-
-
-/* =========================
-   CLEAR HISTORY
-========================= */
-
-function clearChatHistory() {
-
-    const confirmed =
-        confirm(
-            "Clear all saved chat history?"
-        );
-
-    if (!confirmed) return;
-
-    localStorage.removeItem(
-        "my_ai_chats"
-    );
-
-    loadHistory();
-
-    showToast(
-        "Chat history cleared."
-    );
-}
-
-
-/* =========================
-   LOGIN / PROFILE
-========================= */
+// =====================================================
+// LOCAL USER
+// =====================================================
 
 function loadLocalUser() {
 
-    const saved =
-        localStorage.getItem(
-            "my_ai_user"
-        );
-
-    if (!saved) return;
-
     try {
 
-        currentUser =
-            JSON.parse(saved);
+        const saved =
+            localStorage.getItem(
+                "my_ai_user"
+            );
 
-        updateProfileUI();
+        if (saved) {
+
+            currentUser =
+                JSON.parse(saved);
+
+        }
 
     } catch {
 
-        localStorage.removeItem(
-            "my_ai_user"
-        );
+        currentUser =
+            null;
 
     }
-}
 
-
-function openProfile() {
-
-    if (!profileModal) return;
-
-    profileModal.style.display =
-        "flex";
-}
-
-
-function closeProfile() {
-
-    if (!profileModal) return;
-
-    profileModal.style.display =
-        "none";
-}
-
-
-function openLogin() {
-
-    closeProfile();
-
-    if (loginModal) {
-        loginModal.style.display =
-            "flex";
-    }
-}
-
-
-function closeLogin() {
-
-    if (!loginModal) return;
-
-    loginModal.style.display =
-        "none";
-}
-
-
-function loginUser() {
-
-    const name =
-        document.getElementById(
-            "loginName"
-        )?.value.trim();
-
-    const email =
-        document.getElementById(
-            "loginEmail"
-        )?.value.trim();
-
-    const password =
-        document.getElementById(
-            "loginPassword"
-        )?.value;
-
-    if (!name || !email || !password) {
-
-        showToast(
-            "Please fill in all fields."
-        );
-
-        return;
-    }
-
-    /*
-     * Temporary local login.
-     *
-     * Real secure account authentication
-     * will be connected to the backend/database
-     * in the next step.
-     */
-
-    currentUser = {
-        name: name,
-        email: email
-    };
-
-    localStorage.setItem(
-        "my_ai_user",
-        JSON.stringify(currentUser)
-    );
-
-    updateProfileUI();
-
-    closeLogin();
-
-    showToast(
-        "Welcome to MY AI!"
-    );
 }
 
 
 function updateProfileUI() {
 
-    if (!currentUser) return;
+    if (!currentUser) {
+        return;
+    }
 
     const name =
         currentUser.name ||
         "MY AI User";
 
-    const firstLetter =
-        name.charAt(0)
+    const avatar =
+        name
+            .charAt(0)
             .toUpperCase();
+
 
     const profileName =
         document.getElementById(
@@ -1058,15 +1276,16 @@ function updateProfileUI() {
             "modalName"
         );
 
+    const modalAvatar =
+        document.getElementById(
+            "modalAvatar"
+        );
+
     const modalEmail =
         document.getElementById(
             "modalEmail"
         );
 
-    const modalAvatar =
-        document.getElementById(
-            "modalAvatar"
-        );
 
     if (profileName) {
         profileName.textContent =
@@ -1075,7 +1294,7 @@ function updateProfileUI() {
 
     if (profileAvatar) {
         profileAvatar.textContent =
-            firstLetter;
+            avatar;
     }
 
     if (modalName) {
@@ -1083,57 +1302,391 @@ function updateProfileUI() {
             name;
     }
 
-    if (modalEmail) {
-        modalEmail.textContent =
-            currentUser.email ||
-            "MY AI Account";
-    }
-
     if (modalAvatar) {
         modalAvatar.textContent =
-            firstLetter;
+            avatar;
     }
+
+    if (
+        modalEmail &&
+        currentUser.email
+    ) {
+
+        modalEmail.textContent =
+            currentUser.email;
+
+    }
+
 }
 
 
-/* =========================
-   SCROLL
-========================= */
+// =====================================================
+// LOGIN
+// =====================================================
 
-function scrollMessages() {
+function openLogin() {
 
-    if (!messages) return;
+    closeProfile();
 
-    requestAnimationFrame(() => {
+    if (loginModal) {
+        loginModal.style.display =
+            "flex";
+    }
 
-        messages.scrollTop =
-            messages.scrollHeight;
-
-    });
 }
 
 
-/* =========================
-   CLOSE MODALS
-========================= */
+function closeLogin() {
 
-window.addEventListener(
-    "click",
-    event => {
+    if (loginModal) {
+        loginModal.style.display =
+            "none";
+    }
 
-        if (
-            event.target ===
-            profileModal
-        ) {
-            closeProfile();
-        }
+}
 
-        if (
-            event.target ===
-            loginModal
-        ) {
-            closeLogin();
-        }
+
+function loginUser() {
+
+    const nameInput =
+        document.getElementById(
+            "loginName"
+        );
+
+    const emailInput =
+        document.getElementById(
+            "loginEmail"
+        );
+
+
+    const name =
+        nameInput
+            ? nameInput.value.trim()
+            : "";
+
+    const email =
+        emailInput
+            ? emailInput.value.trim()
+            : "";
+
+
+    if (!name || !email) {
+
+        showToast(
+            "Please enter your name and email."
+        );
+
+        return;
+    }
+
+
+    currentUser = {
+        name: name,
+        email: email
+    };
+
+
+    localStorage.setItem(
+        "my_ai_user",
+        JSON.stringify(
+            currentUser
+        )
+    );
+
+
+    updateProfileUI();
+
+    closeLogin();
+
+    showToast(
+        "✅ Welcome to MY AI"
+    );
+
+}
+
+
+// =====================================================
+// PROFILE
+// =====================================================
+
+function openProfile() {
+
+    if (profileModal) {
+        profileModal.style.display =
+            "flex";
+    }
+
+}
+
+
+function closeProfile() {
+
+    if (profileModal) {
+        profileModal.style.display =
+            "none";
+    }
+
+}
+
+
+// =====================================================
+// CHAT HISTORY
+// =====================================================
+
+function saveCurrentChat() {
+
+    if (!currentChat.length) {
+        return;
+    }
+
+    try {
+
+        let history =
+            JSON.parse(
+                localStorage.getItem(
+                    "my_ai_chats"
+                ) || "[]"
+            );
+
+
+        const title =
+            currentChat.find(
+                item =>
+                    item.role === "user"
+            )?.content ||
+            "New Chat";
+
+
+        history = history.filter(
+            item =>
+                item.title !== title
+        );
+
+
+        history.unshift({
+            title: title.substring(
+                0,
+                60
+            ),
+            messages: currentChat
+        });
+
+
+        history =
+            history.slice(
+                0,
+                30
+            );
+
+
+        localStorage.setItem(
+            "my_ai_chats",
+            JSON.stringify(
+                history
+            )
+        );
+
+
+        loadHistory();
+
+    } catch (error) {
+
+        console.log(
+            "History save error:",
+            error
+        );
 
     }
-);
+
+}
+
+
+// =====================================================
+// LOAD HISTORY
+// =====================================================
+
+function loadHistory() {
+
+    if (!chatHistory) {
+        return;
+    }
+
+    chatHistory.innerHTML = "";
+
+
+    try {
+
+        const history =
+            JSON.parse(
+                localStorage.getItem(
+                    "my_ai_chats"
+                ) || "[]"
+            );
+
+
+        history.forEach(
+            (chat, index) => {
+
+                const button =
+                    document.createElement(
+                        "button"
+                    );
+
+                button.className =
+                    "history-item";
+
+
+                button.textContent =
+                    chat.title ||
+                    "Chat " +
+                    (index + 1);
+
+
+                button.onclick =
+                    function() {
+
+                        openSavedChat(
+                            index
+                        );
+
+                    };
+
+
+                chatHistory.appendChild(
+                    button
+                );
+
+            }
+        );
+
+    } catch {
+
+        console.log(
+            "Could not load history."
+        );
+
+    }
+
+}
+
+
+// =====================================================
+// OPEN SAVED CHAT
+// =====================================================
+
+function openSavedChat(index) {
+
+    try {
+
+        const history =
+            JSON.parse(
+                localStorage.getItem(
+                    "my_ai_chats"
+                ) || "[]"
+            );
+
+
+        const chat =
+            history[index];
+
+        if (
+            !chat ||
+            !Array.isArray(
+                chat.messages
+            )
+        ) {
+            return;
+        }
+
+
+        currentChat =
+            chat.messages;
+
+
+        messages.innerHTML = "";
+
+
+        currentChat.forEach(
+            message => {
+
+                addMessage(
+                    message.role,
+                    message.content
+                );
+
+            }
+        );
+
+
+        if (
+            window.innerWidth <= 800
+        ) {
+
+            toggleSidebar();
+
+        }
+
+    } catch {
+
+        showToast(
+            "Could not open chat."
+        );
+
+    }
+
+}
+
+
+// =====================================================
+// CLEAR HISTORY
+// =====================================================
+
+function clearChatHistory() {
+
+    localStorage.removeItem(
+        "my_ai_chats"
+    );
+
+    currentChat = [];
+
+    newChat();
+
+    loadHistory();
+
+    closeProfile();
+
+    showToast(
+        "🗑️ Chat history cleared"
+    );
+
+}
+
+
+// =====================================================
+// TOAST
+// =====================================================
+
+function showToast(text) {
+
+    if (!toast) return;
+
+    toast.textContent =
+        text;
+
+    toast.classList.add(
+        "show"
+    );
+
+
+    setTimeout(
+        () => {
+
+            toast.classList.remove(
+                "show"
+            );
+
+        },
+        2500
+    );
+
+}
