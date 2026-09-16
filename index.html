@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My AI Web Mini App</title>
-    <link rel="stylesheet" href="style.css">
+    
+    <!-- Flask Static CSS Link -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <!-- External Libraries -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
 </head>
@@ -24,7 +28,6 @@
                 <button class="menu-btn" data-mode="translate"><i class="fa-solid fa-language"></i> 🌐 Translator</button>
             </nav>
             <div class="sidebar-footer">
-                <!-- Monetization Shortener / Support Button -->
                 <a href="https://your-link.com" target="_blank" class="support-btn">
                     <i class="fa-solid fa-heart"></i> Support Developer
                 </a>
@@ -65,6 +68,8 @@
     <!-- External Markdown and Syntax Highlighting Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-    <script src="app.js"></script>
+    
+    <!-- Flask Static JS Link -->
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
