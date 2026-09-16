@@ -1,713 +1,329 @@
 import os
 import base64
-import time
-
 from flask import Flask, request, jsonify, send_from_directory
-from google import genai
-from google.genai import types
+from openai import OpenAI
+from dotenv import load_dotenv
 
-
-# =========================================================
-# MY AI SERVER
-# =========================================================
+load_dotenv()
 
 app = Flask(__name__, static_folder=".")
 
+API_KEY = os.getenv("OPENAI_API_KEY")
 
-# =========================================================
-# GEMINI MODELS
-# =========================================================
+if not API_KEY:
+    print("WARNING: OPENAI_API_KEY is not configured.")
 
-TEXT_MODELS = [
-    "gemini-3.8-flash",
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash-lite",
-]
-
-IMAGE_MODEL = "gemini-3.1-flash-image"
+client = OpenAI(api_key=API_KEY) if API_KEY else None
 
 
-# =========================================================
-# GEMINI CLIENT
-# =========================================================
+# =========================
+# CONFIG
+# =========================
 
-API_KEY = os.environ.get("GEMINI_API_KEY")
-
-client = None
-
-if API_KEY:
-    try:
-        client = genai.Client(
-            api_key=API_KEY
-        )
-
-        print(
-            "MY AI: Gemini client initialized."
-        )
-
-    except Exception as error:
-
-        print(
-            "MY AI: Gemini client error:",
-            repr(error)
-        )
-
-else:
-
-    print(
-        "MY AI: GEMINI_API_KEY is missing."
-    )
+TEXT_MODEL = "gpt-5.6-luna"
+IMAGE_MODEL = "gpt-image-2"
+TTS_MODEL = "gpt-4o-mini-tts"
 
 
-# =========================================================
-# ERROR HELPER
-# =========================================================
+# =========================
+# HELPERS
+# =========================
 
 def api_error(message, status=500):
-
     return jsonify({
         "error": message
     }), status
 
 
-# =========================================================
-# CLIENT CHECK
-# =========================================================
-
-def check_client():
-
-    return client is not None
-
-
-# =========================================================
-# TEMPORARY ERROR CHECK
-# =========================================================
-
-def is_temporary_error(error):
-
-    error_text = str(
-        error
-    ).upper()
-
-    temporary_errors = [
-        "503",
-        "UNAVAILABLE",
-        "HIGH DEMAND",
-        "429",
-        "RESOURCE_EXHAUSTED",
-        "TOO MANY REQUESTS",
-        "OVERLOADED",
-        "CAPACITY",
-    ]
-
-    for item in temporary_errors:
-
-        if item in error_text:
-            return True
-
-    return False
-
-
-# =========================================================
-# TEXT AI WITH FALLBACK
-# =========================================================
-
-def generate_text_with_fallback(contents):
-
-    last_error = None
-
-    for model in TEXT_MODELS:
-
-        print(
-            "Trying text model:",
-            model
+def require_client():
+    if client is None:
+        return api_error(
+            "OPENAI_API_KEY is not configured on the server.",
+            500
         )
 
-        try:
-
-            response = client.models.generate_content(
-                model=model,
-                contents=contents
-            )
-
-            if response and response.text:
-
-                print(
-                    "Text generation success:",
-                    model
-                )
-
-                return response.text
-
-        except Exception as error:
-
-            last_error = error
-
-            print(
-                model,
-                "failed:",
-                repr(error)
-            )
-
-            # Retry temporary errors once
-            if is_temporary_error(error):
-
-                try:
-
-                    print(
-                        "Retrying:",
-                        model
-                    )
-
-                    time.sleep(1)
-
-                    response = client.models.generate_content(
-                        model=model,
-                        contents=contents
-                    )
-
-                    if response and response.text:
-
-                        print(
-                            "Retry success:",
-                            model
-                        )
-
-                        return response.text
-
-                except Exception as retry_error:
-
-                    last_error = retry_error
-
-                    print(
-                        model,
-                        "retry failed:",
-                        repr(retry_error)
-                    )
-
-    raise RuntimeError(
-        "All text models are temporarily unavailable."
-    ) from last_error
+    return None
 
 
-# =========================================================
+def clean_history(history):
+    """
+    Keep only simple user/assistant text messages.
+    """
+
+    if not isinstance(history, list):
+        return []
+
+    cleaned = []
+
+    for item in history[-20:]:
+
+        if not isinstance(item, dict):
+            continue
+
+        role = item.get("role")
+        content = item.get("content")
+
+        if role not in ["user", "assistant"]:
+            continue
+
+        if not isinstance(content, str):
+            continue
+
+        if not content.strip():
+            continue
+
+        cleaned.append({
+            "role": role,
+            "content": content[:12000]
+        })
+
+    return cleaned
+
+
+# =========================
 # HOME
-# =========================================================
+# =========================
 
 @app.route("/")
 def home():
-
-    return send_from_directory(
-        ".",
-        "index.html"
-    )
+    return send_from_directory(".", "index.html")
 
 
-# =========================================================
+# =========================
 # STATIC FILES
-# =========================================================
+# =========================
 
-@app.route("/<path:filename>")
-def static_files(filename):
+@app.route("/<path:path>")
+def static_files(path):
 
-    return send_from_directory(
-        ".",
-        filename
-    )
+    if path.startswith("api/"):
+        return api_error("API endpoint not found.", 404)
+
+    full_path = os.path.join(".", path)
+
+    if os.path.isfile(full_path):
+        return send_from_directory(".", path)
+
+    return send_from_directory(".", "index.html")
 
 
-# =========================================================
-# AI CHAT
-# =========================================================
+# =========================
+# NORMAL CHAT
+# =========================
 
-@app.route(
-    "/api/chat",
-    methods=["POST"]
-)
+@app.route("/api/chat", methods=["POST"])
 def chat():
 
-    if not check_client():
+    error = require_client()
 
-        return api_error(
-            "GEMINI_API_KEY is not configured on the server.",
-            500
-        )
-
-
-    data = request.get_json(
-        silent=True
-    ) or {}
-
-
-    message = str(
-        data.get(
-            "message",
-            ""
-        )
-    ).strip()
-
-
-    feature = str(
-        data.get(
-            "feature",
-            "chat"
-        )
-    ).strip()
-
-
-    if not message:
-
-        return api_error(
-            "Message is required.",
-            400
-        )
-
-
-    feature_instruction = {
-
-        "chat":
-            "Answer naturally and helpfully.",
-
-        "coding":
-            "Act as a helpful programming assistant. "
-            "Explain code clearly and provide correct examples.",
-
-        "study":
-            "Act as a study assistant. "
-            "Explain concepts simply and step by step.",
-
-        "translate":
-            "Act as a translation assistant. "
-            "Translate accurately while preserving meaning.",
-
-        "summarize":
-            "Summarize the user's text clearly "
-            "while keeping important information.",
-
-        "math":
-            "Act as a math solver. "
-            "Solve problems carefully and explain steps.",
-
-        "search":
-            "Answer as an AI assistant. "
-            "Do not claim that you performed a live web search "
-            "unless a search tool is actually connected.",
-
-        "notes":
-            "Help the user create clear, organized and useful notes.",
-
-        "voice":
-            "Respond naturally as a conversational AI assistant.",
-
-        "file":
-            "Help the user with file-related questions. "
-            "If a file is required, ask the user to upload it.",
-
-        "ocr":
-            "Help with text recognition from images.",
-
-        "editing":
-            "Help the user describe image editing instructions clearly.",
-    }
-
-
-    instruction = feature_instruction.get(
-        feature,
-        feature_instruction["chat"]
-    )
-
-
-    prompt = f"""
-You are MY AI, a helpful personal AI assistant.
-
-{instruction}
-
-Important rules:
-
-- Be accurate and useful.
-- If the user asks in Bangla or Banglish,
-  reply naturally in Bangla/Banglish.
-- If the user asks in English,
-  reply in English.
-- Do not mention internal model names.
-- Do not pretend unavailable tools were used.
-- Keep answers reasonably concise unless
-  the user asks for more detail.
-- Be friendly and natural.
-
-User message:
-
-{message}
-"""
-
+    if error:
+        return error
 
     try:
 
-        reply = generate_text_with_fallback(
-            prompt
+        data = request.get_json(
+            silent=True
+        ) or {}
+
+        message = (
+            data.get("message")
+            or ""
+        ).strip()
+
+        history = clean_history(
+            data.get("history", [])
         )
 
-        return jsonify({
-            "reply": reply
-        })
-
-
-    except Exception as error:
-
-        print(
-            "CHAT ERROR:",
-            repr(error)
-        )
-
-        return api_error(
-            "AI is temporarily busy. Please try again.",
-            503
-        )
-
-
-# =========================================================
-# IMAGE ANALYSIS + OCR
-# =========================================================
-
-@app.route(
-    "/api/analyze-image",
-    methods=["POST"]
-)
-def analyze_image():
-
-    if not check_client():
-
-        return api_error(
-            "GEMINI_API_KEY is not configured on the server.",
-            500
-        )
-
-
-    image = request.files.get(
-        "image"
-    )
-
-
-    if image is None:
-
-        return api_error(
-            "No image was uploaded.",
-            400
-        )
-
-
-    image_bytes = image.read()
-
-
-    if not image_bytes:
-
-        return api_error(
-            "The uploaded image is empty.",
-            400
-        )
-
-
-    mime_type = (
-        image.mimetype
-        or "image/jpeg"
-    )
-
-
-    if not mime_type.startswith(
-        "image/"
-    ):
-
-        return api_error(
-            "Please upload a valid image.",
-            400
-        )
-
-
-    ocr_mode = (
-        str(
-            request.form.get(
-                "ocr",
-                "false"
+        if not message:
+            return api_error(
+                "Message is empty.",
+                400
             )
-        ).lower()
-        == "true"
-    )
 
+        lower = message.lower()
 
-    if ocr_mode:
+        # =====================
+        # COMMAND MODES
+        # =====================
 
-        prompt = """
-Read the text visible in this image.
-
-Return the recognized text as accurately as possible.
-
-Rules:
-
-- Preserve the original wording where possible.
-- Keep line breaks when useful.
-- If there is no readable text,
-  clearly say that.
-- Do not invent missing text.
-"""
-
-
-    else:
-
-        prompt = """
-Analyze this image carefully.
-
-Provide:
-
-1. Short description
-2. Main objects or subjects
-3. Visible text, if any
-4. Important details
-5. Useful observations
-
-Be accurate.
-
-Do not invent details
-that cannot be seen.
-"""
-
-
-    contents = [
-
-        types.Part.from_bytes(
-            data=image_bytes,
-            mime_type=mime_type
-        ),
-
-        prompt
-    ]
-
-
-    try:
-
-        reply = generate_text_with_fallback(
-            contents
+        system_instruction = (
+            "You are MY AI, a helpful personal AI assistant. "
+            "Answer clearly and naturally. "
+            "Do not mention internal model names unless asked."
         )
 
+        if lower.startswith("/code"):
+
+            system_instruction += (
+                " The user is asking for coding help. "
+                "Give complete, practical code when appropriate "
+                "and explain important parts briefly."
+            )
+
+            message = message[5:].strip()
+
+            if not message:
+                message = (
+                    "Help me with coding."
+                )
+
+        elif lower.startswith("/translate"):
+
+            system_instruction += (
+                " The user wants translation. "
+                "Translate accurately and preserve the meaning. "
+                "Do not add unnecessary explanation."
+            )
+
+            message = message[10:].strip()
+
+            if not message:
+                message = (
+                    "Please translate the text I provide."
+                )
+
+        elif lower.startswith("/voice"):
+
+            system_instruction += (
+                " The user wants text prepared for "
+                "natural voice narration. "
+                "Return clean natural spoken text."
+            )
+
+            message = message[6:].strip()
+
+            if not message:
+                message = (
+                    "Prepare a natural spoken response."
+                )
+
+        elif lower.startswith("/analyze"):
+
+            system_instruction += (
+                " The user wants image analysis. "
+                "If no image is attached, explain that "
+                "they should attach an image."
+            )
+
+            message = message[8:].strip()
+
+            if not message:
+                message = (
+                    "Analyze the attached image."
+                )
+
+        # =====================
+        # RESPONSES API
+        # =====================
+
+        input_messages = [
+            {
+                "role": "system",
+                "content": system_instruction
+            }
+        ]
+
+        for item in history:
+
+            input_messages.append({
+                "role": item["role"],
+                "content": item["content"]
+            })
+
+        input_messages.append({
+            "role": "user",
+            "content": message
+        })
+
+        response = client.responses.create(
+            model=TEXT_MODEL,
+            input=input_messages
+        )
+
+        reply = response.output_text
+
+        if not reply:
+            reply = (
+                "I couldn't generate a response."
+            )
 
         return jsonify({
             "reply": reply
         })
 
-
     except Exception as error:
 
-        print(
-            "IMAGE ANALYSIS ERROR:",
-            repr(error)
-        )
-
+        print("CHAT ERROR:", repr(error))
 
         return api_error(
-            "Image analysis is temporarily unavailable.",
-            503
+            "AI request failed: " + str(error),
+            500
         )
 
 
-# =========================================================
+# =========================
 # IMAGE GENERATION
-# =========================================================
+# =========================
 
-@app.route(
-    "/api/generate-image",
-    methods=["POST"]
-)
+@app.route("/api/generate-image", methods=["POST"])
 def generate_image():
 
-    if not check_client():
+    error = require_client()
 
-        return api_error(
-            "GEMINI_API_KEY is not configured on the server.",
-            500
-        )
-
-
-    data = request.get_json(
-        silent=True
-    ) or {}
-
-
-    prompt = str(
-        data.get(
-            "prompt",
-            ""
-        )
-    ).strip()
-
-
-    if not prompt:
-
-        return api_error(
-            "Image prompt is required.",
-            400
-        )
-
-
-    print(
-        "IMAGE REQUEST:",
-        prompt
-    )
-
+    if error:
+        return error
 
     try:
 
-        response = client.models.generate_content(
+        data = request.get_json(
+            silent=True
+        ) or {}
 
-            model=IMAGE_MODEL,
+        prompt = (
+            data.get("prompt")
+            or ""
+        ).strip()
 
-            contents=prompt,
-
-            config=types.GenerateContentConfig(
-
-                response_modalities=[
-                    "IMAGE"
-                ]
+        if not prompt:
+            return api_error(
+                "Image prompt is empty.",
+                400
             )
+
+        result = client.images.generate(
+            model=IMAGE_MODEL,
+            prompt=prompt,
+            size="1024x1024"
         )
 
-
-        # -------------------------------------------------
-        # Read generated image
-        # -------------------------------------------------
-
-        if not response:
-
+        if not result.data:
             return api_error(
-                "Empty response received from image model.",
+                "No image was returned.",
                 500
             )
 
+        image = result.data[0]
 
-        # New SDK response.parts
-        parts = response.parts
+        # Base64 response
+        if getattr(image, "b64_json", None):
 
+            return jsonify({
+                "image":
+                    image.b64_json
+            })
 
-        if parts:
+        # URL response
+        if getattr(image, "url", None):
 
-            for part in parts:
-
-                if part.inline_data is None:
-                    continue
-
-
-                image_bytes = (
-                    part.inline_data.data
-                )
-
-
-                if not image_bytes:
-                    continue
-
-
-                mime_type = (
-                    part.inline_data.mime_type
-                    or "image/png"
-                )
-
-
-                image_base64 = (
-                    base64.b64encode(
-                        image_bytes
-                    ).decode(
-                        "utf-8"
-                    )
-                )
-
-
-                print(
-                    "IMAGE GENERATED SUCCESSFULLY"
-                )
-
-
-                return jsonify({
-
-                    "image":
-                        image_base64,
-
-                    "mime_type":
-                        mime_type
-                })
-
-
-        # -------------------------------------------------
-        # Fallback response.candidates
-        # -------------------------------------------------
-
-        for candidate in (
-            response.candidates or []
-        ):
-
-            if not candidate.content:
-                continue
-
-
-            for part in (
-                candidate.content.parts or []
-            ):
-
-                if not part.inline_data:
-                    continue
-
-
-                image_bytes = (
-                    part.inline_data.data
-                )
-
-
-                if not image_bytes:
-                    continue
-
-
-                mime_type = (
-                    part.inline_data.mime_type
-                    or "image/png"
-                )
-
-
-                image_base64 = (
-                    base64.b64encode(
-                        image_bytes
-                    ).decode(
-                        "utf-8"
-                    )
-                )
-
-
-                print(
-                    "IMAGE GENERATED SUCCESSFULLY"
-                )
-
-
-                return jsonify({
-
-                    "image":
-                        image_base64,
-
-                    "mime_type":
-                        mime_type
-                })
-
-
-        # -------------------------------------------------
-        # No image
-        # -------------------------------------------------
-
-        print(
-            "IMAGE RESPONSE DID NOT CONTAIN IMAGE"
-        )
-
+            return jsonify({
+                "image":
+                    image.url
+            })
 
         return api_error(
-            "The AI did not return an image. "
-            "Please try another prompt.",
+            "Image response did not contain image data.",
             500
         )
-
 
     except Exception as error:
 
@@ -716,8 +332,6 @@ def generate_image():
             repr(error)
         )
 
-
-        # Return actual error so we can diagnose it
         return api_error(
             "Image generation error: "
             + str(error),
@@ -725,60 +339,169 @@ def generate_image():
         )
 
 
-# =========================================================
-# HEALTH CHECK
-# =========================================================
+# =========================
+# IMAGE ANALYSIS
+# =========================
 
-@app.route(
-    "/api/health",
-    methods=["GET"]
-)
+@app.route("/api/analyze-image", methods=["POST"])
+def analyze_image():
+
+    error = require_client()
+
+    if error:
+        return error
+
+    try:
+
+        image_file = request.files.get(
+            "image"
+        )
+
+        if not image_file:
+            return api_error(
+                "No image was uploaded.",
+                400
+            )
+
+        image_bytes = image_file.read()
+
+        if not image_bytes:
+            return api_error(
+                "Uploaded image is empty.",
+                400
+            )
+
+        mime_type = (
+            image_file.mimetype
+            or "image/jpeg"
+        )
+
+        encoded = base64.b64encode(
+            image_bytes
+        ).decode("utf-8")
+
+        response = client.responses.create(
+            model=TEXT_MODEL,
+            input=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": (
+                                "Analyze this image carefully. "
+                                "Describe what is visible, "
+                                "read useful text if present, "
+                                "and answer naturally."
+                            )
+                        },
+                        {
+                            "type": "input_image",
+                            "image_url":
+                                f"data:{mime_type};base64,{encoded}"
+                        }
+                    ]
+                }
+            ]
+        )
+
+        reply = response.output_text
+
+        return jsonify({
+            "reply": reply
+        })
+
+    except Exception as error:
+
+        print(
+            "IMAGE ANALYSIS ERROR:",
+            repr(error)
+        )
+
+        return api_error(
+            "Image analysis error: "
+            + str(error),
+            500
+        )
+
+
+# =========================
+# TEXT TO SPEECH
+# =========================
+
+@app.route("/api/voice", methods=["POST"])
+def text_to_voice():
+
+    error = require_client()
+
+    if error:
+        return error
+
+    try:
+
+        data = request.get_json(
+            silent=True
+        ) or {}
+
+        text = (
+            data.get("text")
+            or ""
+        ).strip()
+
+        if not text:
+            return api_error(
+                "Text is empty.",
+                400
+            )
+
+        speech = client.audio.speech.create(
+            model=TTS_MODEL,
+            voice="alloy",
+            input=text,
+            response_format="mp3"
+        )
+
+        audio_bytes = speech.read()
+
+        encoded = base64.b64encode(
+            audio_bytes
+        ).decode("utf-8")
+
+        return jsonify({
+            "audio": encoded,
+            "mime_type": "audio/mpeg"
+        })
+
+    except Exception as error:
+
+        print(
+            "VOICE ERROR:",
+            repr(error)
+        )
+
+        return api_error(
+            "Voice generation error: "
+            + str(error),
+            500
+        )
+
+
+# =========================
+# HEALTH
+# =========================
+
+@app.route("/api/health")
 def health():
 
     return jsonify({
-
-        "status":
-            "online",
-
-        "my_ai":
-            True,
-
-        "gemini_configured":
-            bool(client),
-
-        "text_models":
-            TEXT_MODELS,
-
-        "image_model":
-            IMAGE_MODEL
+        "status": "ok",
+        "ai": "openai"
     })
 
 
-# =========================================================
-# API 404
-# =========================================================
-
-@app.errorhandler(404)
-def not_found(error):
-
-    if request.path.startswith(
-        "/api/"
-    ):
-
-        return jsonify({
-
-            "error":
-                "API endpoint not found."
-
-        }), 404
-
-
-    return error
-
-
-# =========================================================
-# RUN SERVER
-# =========================================================
+# =========================
+# RUN
+# =========================
 
 if __name__ == "__main__":
 
@@ -789,12 +512,8 @@ if __name__ == "__main__":
         )
     )
 
-
     app.run(
-
         host="0.0.0.0",
-
         port=port,
-
         debug=False
-                )
+            )
