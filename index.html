@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>MY AI</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+
+        <div class="logo">
+            <div class="logo-icon">🤖</div>
+            <div>
+                <h2>MY AI</h2>
+                <span>Your AI Assistant</span>
+            </div>
+        </div>
+
+        <button class="new-chat" onclick="newChat()">
+            ＋ New Chat
+        </button>
+
+        <nav class="menu">
+
+            <button class="menu-item active" onclick="selectFeature('chat')">
+                💬 <span>AI Chat</span>
+            </button>
+
+            <button class="menu-item" onclick="selectFeature('image')">
+                🖼️ <span>Create Image</span>
+            </button>
+
+            <button class="menu-item" onclick="selectFeature('analyze')">
+                📸 <span>Analyze Image</span>
+            </button>
+
+            <button class="menu-item" onclick="selectFeature('file')">
+                📄 <span>Analyze File</span>
+            </button>
+
+            <button class="menu-item" onclick="selectFeature('voice')">
+                🎙️ <span>Voice</span>
+            </button>
+
+            <button class="menu-item" onclick="selectFeature('coding')">
+                💻 <span>Coding</span>
+            </button>
+
+            <button class="menu-item" onclick="selectFeature('study')">
+                📚 <span>Study</span>
+            </button>
+
+            <button class="menu-item" onclick="selectFeature('translate')">
+                🌐 <span>Translate</span>
+            </button>
+
+            <button class="menu-item" onclick="selectFeature('summarize')">
+                📝 <span>Summarize</span>
+            </button>
+
+            <button class="menu-item" onclick="selectFeature('math')">
+                ➗ <span>Math Solver</span>
+            </button>
+
+            <button class="menu-item" onclick="selectFeature('search')">
+                🔍 <span>Web Search</span>
+            </button>
+
+            <button class="menu-item" onclick="selectFeature('ocr')">
+                📷 <span>OCR</span>
+            </button>
+
+            <button class="menu-item" onclick="selectFeature('notes')">
+                📋 <span>AI Notes</span>
+            </button>
+
+            <button class="menu-item" onclick="selectFeature('editing')">
+                🎨 <span>Edit Image</span>
+            </button>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <button class="bottom-item">
+                👤 <span>Profile</span>
+            </button>
+
+            <button class="bottom-item">
+                ⭐ <span>Free Plan</span>
+            </button>
+
+            <button class="bottom-item">
+                ⚙️ <span>Settings</span>
+            </button>
+
+        </div>
+
+    </aside>
+
+
+    <!-- Main -->
+    <main class="main">
+
+        <header class="topbar">
+
+            <button class="mobile-menu" onclick="toggleSidebar()">
+                ☰
+            </button>
+
+            <div>
+                <h1 id="pageTitle">MY AI</h1>
+                <p id="pageSubtitle">
+                    Your personal AI assistant
+                </p>
+            </div>
+
+            <div class="status">
+                <span></span> Online
+            </div>
+
+        </header>
+
+
+        <!-- Welcome -->
+        <section class="welcome" id="welcome">
+
+            <div class="robot">
+                🤖
+            </div>
+
+            <h1>How can I help you?</h1>
+
+            <p>
+                Ask anything, create images, analyze files,
+                code, study and more.
+            </p>
+
+        </section>
+
+
+        <!-- Feature Tiles -->
+        <section class="tiles">
+
+            <div class="tile" onclick="selectFeature('chat')">
+                <div class="tile-icon">💬</div>
+                <h3>AI Chat</h3>
+                <p>Ask anything</p>
+            </div>
+
+            <div class="tile" onclick="selectFeature('image')">
+                <div class="tile-icon">🖼️</div>
+                <h3>Create Image</h3>
+                <p>Generate images</p>
+            </div>
+
+            <div class="tile" onclick="selectFeature('analyze')">
+                <div class="tile-icon">📸</div>
+                <h3>Analyze Image</h3>
+                <p>Understand images</p>
+            </div>
+
+            <div class="tile" onclick="selectFeature('file')">
+                <div class="tile-icon">📄</div>
+                <h3>Analyze File</h3>
+                <p>PDF & documents</p>
+            </div>
+
+            <div class="tile" onclick="selectFeature('voice')">
+                <div class="tile-icon">🎙️</div>
+                <h3>Voice</h3>
+                <p>Talk with MY AI</p>
+            </div>
+
+            <div class="tile" onclick="selectFeature('coding')">
+                <div class="tile-icon">💻</div>
+                <h3>Coding</h3>
+                <p>Build & debug</p>
+            </div>
+
+            <div class="tile" onclick="selectFeature('study')">
+                <div class="tile-icon">📚</div>
+                <h3>Study</h3>
+                <p>Learn anything</p>
+            </div>
+
+            <div class="tile" onclick="selectFeature('translate')">
+                <div class="tile-icon">🌐</div>
+                <h3>Translate</h3>
+                <p>All languages</p>
+            </div>
+
+            <div class="tile" onclick="selectFeature('summarize')">
+                <div class="tile-icon">📝</div>
+                <h3>Summarize</h3>
+                <p>Shorten text</p>
+            </div>
+
+            <div class="tile" onclick="selectFeature('math')">
+                <div class="tile-icon">➗</div>
+                <h3>Math Solver</h3>
+                <p>Solve problems</p>
+            </div>
+
+            <div class="tile" onclick="selectFeature('search')">
+                <div class="tile-icon">🔍</div>
+                <h3>Web Search</h3>
+                <p>Search the web</p>
+            </div>
+
+            <div class="tile" onclick="selectFeature('ocr')">
+                <div class="tile-icon">📷</div>
+                <h3>OCR</h3>
+                <p>Read image text</p>
+            </div>
+
+            <div class="tile" onclick="selectFeature('notes')">
+                <div class="tile-icon">📋</div>
+                <h3>AI Notes</h3>
+                <p>Create smart notes</p>
+            </div>
+
+            <div class="tile" onclick="selectFeature('editing')">
+                <div class="tile-icon">🎨</div>
+                <h3>Edit Image</h3>
+                <p>AI image editing</p>
+            </div>
+
+        </section>
+
+
+        <!-- Chat -->
+        <section class="chat-area">
+
+            <div class="messages" id="messages"></div>
+
+            <div class="input-box">
+
+                <button class="attach" onclick="openFile()">
+                    📎
+                </button>
+
+                <input
+                    type="text"
+                    id="userInput"
+                    placeholder="Message MY AI..."
+                    autocomplete="off"
+                    onkeydown="handleEnter(event)"
+                >
+
+                <button class="voice-btn" onclick="startVoice()">
+                    🎙️
+                </button>
+
+                <button class="send-btn" onclick="sendMessage()">
+                    ➤
+                </button>
+
+            </div>
+
+            <input
+                type="file"
+                id="fileInput"
+                hidden
+                onchange="fileSelected(event)"
+            >
+
+            <p class="disclaimer">
+                MY AI can make mistakes. Check important information.
+            </p>
+
+        </section>
+
+    </main>
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
+              </html>
