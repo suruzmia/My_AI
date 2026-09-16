@@ -1,269 +1,219 @@
-/* =========================================================
-   MY AI - FRONTEND JAVASCRIPT
-   ========================================================= */
-
-const messages = document.getElementById("messages");
-const input = document.getElementById("userInput");
-const fileInput = document.getElementById("fileInput");
+// =========================================================
+// MY AI - FRONTEND
+// =========================================================
 
 let currentFeature = "chat";
-let isProcessing = false;
+let selectedFile = null;
 
 
-/* =========================================================
-   FEATURE DATA
-   ========================================================= */
+// =========================================================
+// FEATURE DATA
+// =========================================================
 
-const features = {
+const FEATURES = {
 
     chat: {
-        title: "MY AI",
-        subtitle: "Your personal AI assistant",
-        placeholder: "Message MY AI..."
+        title: "AI Chat",
+        subtitle: "Your personal AI assistant"
     },
 
     image: {
         title: "Create Image",
-        subtitle: "Generate images with AI",
-        placeholder: "Describe the image you want..."
+        subtitle: "Generate images with AI"
     },
 
     analyze: {
         title: "Analyze Image",
-        subtitle: "Understand your images",
-        placeholder: "Upload an image to analyze..."
+        subtitle: "Understand images with AI"
     },
 
     file: {
         title: "Analyze File",
-        subtitle: "Analyze PDFs and documents",
-        placeholder: "Upload a PDF or file..."
+        subtitle: "Analyze your documents"
     },
 
     voice: {
         title: "Voice",
-        subtitle: "Talk with MY AI",
-        placeholder: "Type or use the microphone..."
+        subtitle: "Talk with MY AI"
     },
 
     coding: {
         title: "Coding",
-        subtitle: "Your AI coding assistant",
-        placeholder: "Ask a coding question..."
+        subtitle: "Build and debug with AI"
     },
 
     study: {
         title: "Study",
-        subtitle: "Learn with MY AI",
-        placeholder: "What do you want to learn?"
+        subtitle: "Learn with MY AI"
     },
 
     translate: {
         title: "Translate",
-        subtitle: "Translate between languages",
-        placeholder: "Enter text to translate..."
+        subtitle: "Translate any language"
     },
 
     summarize: {
         title: "Summarize",
-        subtitle: "Make text shorter and clearer",
-        placeholder: "Paste text to summarize..."
+        subtitle: "Summarize text quickly"
     },
 
     math: {
         title: "Math Solver",
-        subtitle: "Solve mathematical problems",
-        placeholder: "Enter a math problem..."
+        subtitle: "Solve math problems"
     },
 
     search: {
         title: "Web Search",
-        subtitle: "Search the web with AI",
-        placeholder: "What do you want to search?"
+        subtitle: "Search with AI"
     },
 
     ocr: {
         title: "OCR",
-        subtitle: "Read text from images",
-        placeholder: "Upload an image with text..."
+        subtitle: "Read text from images"
     },
 
     notes: {
         title: "AI Notes",
-        subtitle: "Create smart notes",
-        placeholder: "What note should I create?"
+        subtitle: "Create smart notes"
     },
 
     editing: {
         title: "Edit Image",
-        subtitle: "Edit images with AI",
-        placeholder: "Describe your image edit..."
+        subtitle: "AI image editing"
     }
-
 };
 
 
-/* =========================================================
-   SELECT FEATURE
-   ========================================================= */
+// =========================================================
+// SELECT FEATURE
+// =========================================================
 
 function selectFeature(feature) {
 
-    if (!features[feature]) {
-        return;
-    }
-
     currentFeature = feature;
 
-    const data = features[feature];
+    const data =
+        FEATURES[feature] ||
+        FEATURES.chat;
 
-    const pageTitle = document.getElementById("pageTitle");
-    const pageSubtitle = document.getElementById("pageSubtitle");
+    const title =
+        document.getElementById("pageTitle");
 
-    if (pageTitle) {
-        pageTitle.textContent = data.title;
+    const subtitle =
+        document.getElementById("pageSubtitle");
+
+    if (title) {
+        title.textContent = data.title;
     }
 
-    if (pageSubtitle) {
-        pageSubtitle.textContent = data.subtitle;
+    if (subtitle) {
+        subtitle.textContent = data.subtitle;
     }
+
+    const input =
+        document.getElementById("userInput");
 
     if (input) {
-        input.placeholder = data.placeholder;
-        input.value = "";
-        autoResize(input);
-    }
 
-    /*
-     * Image analysis / OCR automatically opens
-     * the file picker when selected.
-     */
-    if (feature === "analyze" || feature === "ocr") {
-        setTimeout(() => {
-            openFile();
-        }, 100);
-    }
+        if (feature === "image") {
 
-    /*
-     * Close mobile sidebar
-     */
-    if (window.innerWidth <= 700) {
+            input.placeholder =
+                "Describe the image you want...";
 
-        const sidebar = document.getElementById("sidebar");
+        } else {
 
-        if (sidebar) {
-            sidebar.classList.remove("open");
+            input.placeholder =
+                "Message MY AI...";
         }
-    }
-
-}
-
-
-/* =========================================================
-   NEW CHAT
-   ========================================================= */
-
-function newChat() {
-
-    currentFeature = "chat";
-
-    if (messages) {
-
-        messages.innerHTML = `
-            <div class="empty-state" id="emptyState">
-                <div class="empty-icon">🤖</div>
-                <h3>How can I help?</h3>
-                <p>Choose a tool above or send me a message.</p>
-            </div>
-        `;
-
-    }
-
-    if (input) {
-
-        input.value = "";
-
-        input.placeholder =
-            features.chat.placeholder;
-
-        autoResize(input);
 
         input.focus();
     }
 
-    const pageTitle =
-        document.getElementById("pageTitle");
-
-    const pageSubtitle =
-        document.getElementById("pageSubtitle");
-
-    if (pageTitle) {
-        pageTitle.textContent = features.chat.title;
-    }
-
-    if (pageSubtitle) {
-        pageSubtitle.textContent =
-            features.chat.subtitle;
-    }
-
+    closeSidebar();
 }
 
 
-/* =========================================================
-   ENTER KEY
-   ========================================================= */
+// =========================================================
+// NEW CHAT
+// =========================================================
+
+function newChat() {
+
+    const messages =
+        document.getElementById("messages");
+
+    if (!messages) {
+        return;
+    }
+
+    messages.innerHTML = `
+        <div class="empty-state" id="emptyState">
+            <div class="empty-icon">🤖</div>
+            <h3>How can I help?</h3>
+            <p>Choose a tool above or send me a message.</p>
+        </div>
+    `;
+
+    currentFeature = "chat";
+
+    selectFeature("chat");
+}
+
+
+// =========================================================
+// ENTER KEY
+// =========================================================
 
 function handleEnter(event) {
 
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (
+        event.key === "Enter" &&
+        !event.shiftKey
+    ) {
 
         event.preventDefault();
 
         sendMessage();
     }
-
 }
 
 
-/* =========================================================
-   AUTO RESIZE TEXTAREA
-   ========================================================= */
+// =========================================================
+// AUTO RESIZE
+// =========================================================
 
-function autoResize(element) {
+function autoResize(textarea) {
 
-    if (!element) {
-        return;
-    }
+    textarea.style.height = "auto";
 
-    element.style.height = "auto";
-
-    const maxHeight = 120;
-
-    element.style.height =
-        Math.min(element.scrollHeight, maxHeight) + "px";
+    textarea.style.height =
+        Math.min(
+            textarea.scrollHeight,
+            130
+        ) + "px";
 }
 
 
-/* =========================================================
-   SEND MESSAGE
-   ========================================================= */
+// =========================================================
+// SEND MESSAGE
+// =========================================================
 
 async function sendMessage() {
 
-    if (isProcessing) {
+    const input =
+        document.getElementById("userInput");
+
+    if (!input) {
         return;
     }
 
-    const text =
-        input ? input.value.trim() : "";
+    const message =
+        input.value.trim();
 
-    if (!text) {
+    if (!message) {
         return;
     }
 
-    /*
-     * IMAGE GENERATION
-     */
 
     if (currentFeature === "image") {
 
@@ -271,217 +221,155 @@ async function sendMessage() {
 
         autoResize(input);
 
-        await generateImage(text);
+        await generateImage(message);
 
         return;
     }
 
-
-    /*
-     * NORMAL CHAT
-     */
-
-    addMessage(text, "user");
 
     input.value = "";
 
     autoResize(input);
 
-    /*
-     * For now all text-based tools use the AI chat
-     * endpoint. Their dedicated behavior can be added
-     * later without changing the UI.
-     */
 
-    await sendToAI(text);
-}
+    addMessage(
+        message,
+        "user"
+    );
 
 
-/* =========================================================
-   SEND TO AI
-   ========================================================= */
+    const typingId =
+        showTyping();
 
-async function sendToAI(text) {
-
-    isProcessing = true;
-
-    const loading =
-        addMessage("🤖 Thinking", "ai", true);
 
     try {
 
-        const response = await fetch(
-            "/api/chat",
-            {
-                method: "POST",
+        const response =
+            await fetch(
+                "/api/chat",
+                {
+                    method: "POST",
 
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-                body: JSON.stringify({
-                    message: text,
-                    feature: currentFeature
-                })
-            }
-        );
-
-
-        let data;
-
-        try {
-            data = await response.json();
-        } catch {
-            data = {};
-        }
+                    body: JSON.stringify({
+                        message: message,
+                        feature: currentFeature
+                    })
+                }
+            );
 
 
-        if (loading) {
-            loading.remove();
-        }
+        const data =
+            await response.json();
+
+
+        removeTyping(typingId);
 
 
         if (!response.ok) {
 
-            addMessage(
-                "❌ " +
-                (data.error ||
-                "Something went wrong."),
-                "ai"
-            );
-
-            return;
-        }
-
-
-        if (data.reply) {
-
-            typeMessage(data.reply);
-
-        } else {
-
-            addMessage(
-                "❌ No response was generated.",
-                "ai"
+            throw new Error(
+                data.error ||
+                "AI request failed."
             );
         }
+
+
+        addMessage(
+            data.reply ||
+            "I couldn't generate a response.",
+            "ai"
+        );
 
 
     } catch (error) {
 
-        console.error(error);
-
-        if (loading) {
-            loading.remove();
-        }
+        removeTyping(typingId);
 
         addMessage(
-            "❌ Cannot connect to MY AI server.",
+            "❌ " +
+            error.message,
             "ai"
         );
-
-    } finally {
-
-        isProcessing = false;
     }
-
 }
 
 
-/* =========================================================
-   ADD MESSAGE
-   ========================================================= */
+// =========================================================
+// ADD MESSAGE
+// =========================================================
 
-function addMessage(
-    text,
-    type,
-    temporary = false
-) {
+function addMessage(text, type) {
 
-    if (!messages) {
-        return null;
-    }
-
-
-    const emptyState =
-        document.getElementById("emptyState");
-
-    if (emptyState) {
-        emptyState.remove();
-    }
-
-
-    const div =
-        document.createElement("div");
-
-
-    div.classList.add(
-        "message"
-    );
-
-
-    if (type === "user") {
-
-        div.classList.add(
-            "user-message"
-        );
-
-    } else {
-
-        div.classList.add(
-            "ai-message"
-        );
-    }
-
-
-    div.textContent = text;
-
-
-    if (temporary) {
-
-        div.classList.add(
-            "thinking"
-        );
-    }
-
-
-    messages.appendChild(div);
-
-    scrollToBottom();
-
-
-    return div;
-}
-
-
-/* =========================================================
-   TYPING EFFECT
-   ========================================================= */
-
-function typeMessage(text) {
+    const messages =
+        document.getElementById("messages");
 
     if (!messages) {
         return;
     }
 
 
-    const emptyState =
+    const empty =
         document.getElementById("emptyState");
 
-    if (emptyState) {
-        emptyState.remove();
+    if (empty) {
+        empty.remove();
     }
 
 
-    const div =
+    const row =
         document.createElement("div");
 
-    div.className =
-        "message ai-message";
+    row.className =
+        "message-row " +
+        (type === "user"
+            ? "user"
+            : "ai");
 
 
-    messages.appendChild(div);
+    const bubble =
+        document.createElement("div");
 
+    bubble.className =
+        "message " +
+        (type === "user"
+            ? "user"
+            : "ai");
+
+
+    if (type === "ai") {
+
+        typeMessage(
+            bubble,
+            text
+        );
+
+    } else {
+
+        bubble.textContent =
+            text;
+    }
+
+
+    row.appendChild(bubble);
+
+    messages.appendChild(row);
+
+    scrollToBottom();
+}
+
+
+// =========================================================
+// AI TYPING EFFECT
+// =========================================================
+
+function typeMessage(element, text) {
+
+    element.textContent = "";
 
     let index = 0;
 
@@ -494,14 +382,12 @@ function typeMessage(text) {
             return;
         }
 
-
-        div.textContent +=
-            text.charAt(index);
+        element.textContent +=
+            text[index];
 
         index++;
 
         scrollToBottom();
-
 
         setTimeout(
             type,
@@ -514,46 +400,94 @@ function typeMessage(text) {
 }
 
 
-/* =========================================================
-   SCROLL
-   ========================================================= */
+// =========================================================
+// TYPING INDICATOR
+// =========================================================
+
+function showTyping() {
+
+    const messages =
+        document.getElementById("messages");
+
+    const id =
+        "typing-" +
+        Date.now();
+
+
+    const row =
+        document.createElement("div");
+
+    row.className =
+        "message-row ai";
+
+    row.id = id;
+
+
+    row.innerHTML = `
+        <div class="message ai">
+            <div class="typing">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    `;
+
+
+    messages.appendChild(row);
+
+    scrollToBottom();
+
+    return id;
+}
+
+
+function removeTyping(id) {
+
+    const element =
+        document.getElementById(id);
+
+    if (element) {
+        element.remove();
+    }
+}
+
+
+// =========================================================
+// SCROLL
+// =========================================================
 
 function scrollToBottom() {
+
+    const messages =
+        document.getElementById("messages");
 
     if (!messages) {
         return;
     }
 
-    messages.scrollTop =
-        messages.scrollHeight;
+    requestAnimationFrame(() => {
+
+        messages.scrollTop =
+            messages.scrollHeight;
+    });
 }
 
 
-/* =========================================================
-   IMAGE GENERATION
-   ========================================================= */
+// =========================================================
+// IMAGE GENERATION
+// =========================================================
 
 async function generateImage(prompt) {
 
-    if (isProcessing) {
-        return;
-    }
-
-    isProcessing = true;
-
-
     addMessage(
-        "🎨 " + prompt,
+        "🖼️ Creating your image...",
         "user"
     );
 
 
-    const loading =
-        addMessage(
-            "🎨 Creating your image",
-            "ai",
-            true
-        );
+    const typingId =
+        showTyping();
 
 
     try {
@@ -576,331 +510,197 @@ async function generateImage(prompt) {
             );
 
 
-        let data;
-
-        try {
-            data = await response.json();
-        } catch {
-            data = {};
-        }
+        const data =
+            await response.json();
 
 
-        if (loading) {
-            loading.remove();
-        }
+        removeTyping(typingId);
 
 
         if (!response.ok) {
 
-            addMessage(
-                "❌ " +
-                (
-                    data.error ||
-                    "Image generation failed."
-                ),
-                "ai"
-            );
-
-            return;
-        }
-
-
-        if (data.image) {
-
-            showGeneratedImage(
-                data.image,
-                data.mime_type ||
-                "image/png"
-            );
-
-        } else {
-
-            addMessage(
-                "❌ No image was generated.",
-                "ai"
+            throw new Error(
+                data.error ||
+                "Image generation failed."
             );
         }
+
+
+        showGeneratedImage(
+            data.image,
+            data.mime_type
+        );
 
 
     } catch (error) {
 
-        console.error(error);
-
-        if (loading) {
-            loading.remove();
-        }
+        removeTyping(typingId);
 
         addMessage(
-            "❌ Could not connect to image generation server.",
+            "❌ " +
+            error.message,
             "ai"
         );
-
-    } finally {
-
-        isProcessing = false;
     }
-
 }
 
 
-/* =========================================================
-   SHOW GENERATED IMAGE
-   ========================================================= */
+// =========================================================
+// SHOW GENERATED IMAGE
+// =========================================================
 
 function showGeneratedImage(
     base64,
     mimeType
 ) {
 
-    if (!messages) {
-        return;
-    }
+    const messages =
+        document.getElementById("messages");
 
 
-    const wrapper =
+    const row =
         document.createElement("div");
 
-    wrapper.className =
-        "message ai-message image-result";
+    row.className =
+        "message-row ai";
 
 
-    const img =
+    const bubble =
+        document.createElement("div");
+
+    bubble.className =
+        "message ai";
+
+
+    const image =
         document.createElement("img");
 
+    image.src =
+        `data:${mimeType};base64,${base64}`;
 
-    img.src =
-        "data:" +
-        mimeType +
-        ";base64," +
-        base64;
+    image.alt =
+        "Generated image";
 
 
-    img.alt =
-        "MY AI generated image";
+    const actions =
+        document.createElement("div");
+
+    actions.className =
+        "message-actions";
 
 
     const saveButton =
-        document.createElement("a");
-
+        document.createElement("button");
 
     saveButton.className =
         "image-save";
 
-
-    saveButton.href =
-        img.src;
-
-
-    saveButton.download =
-        "MY-AI-generated-image.png";
-
-
     saveButton.textContent =
-        "⬇️ Save Image";
+        "⬇ Save Image";
 
 
-    wrapper.appendChild(img);
+    saveButton.onclick =
+        function () {
 
-    wrapper.appendChild(saveButton);
+            const link =
+                document.createElement("a");
 
-    messages.appendChild(wrapper);
+            link.href =
+                image.src;
+
+            link.download =
+                "my-ai-image.png";
+
+            link.click();
+        };
+
+
+    actions.appendChild(
+        saveButton
+    );
+
+
+    bubble.appendChild(image);
+
+    bubble.appendChild(actions);
+
+    row.appendChild(bubble);
+
+    messages.appendChild(row);
 
     scrollToBottom();
 }
 
 
-/* =========================================================
-   FILE OPEN
-   ========================================================= */
+// =========================================================
+// FILE PICKER
+// =========================================================
 
 function openFile() {
 
-    if (!fileInput) {
-        return;
-    }
+    const input =
+        document.getElementById("fileInput");
 
-    fileInput.click();
+    if (input) {
+        input.click();
+    }
 }
 
 
-/* =========================================================
-   FILE SELECTED
-   ========================================================= */
+// =========================================================
+// FILE SELECTED
+// =========================================================
 
 function fileSelected(event) {
 
     const file =
         event.target.files[0];
 
-
     if (!file) {
         return;
     }
 
 
-    /*
-     * IMAGE ANALYSIS
-     */
+    selectedFile = file;
+
 
     if (
-        currentFeature === "analyze" &&
-        file.type.startsWith("image/")
-    ) {
-
-        analyzeImage(file);
-
-        event.target.value = "";
-
-        return;
-    }
-
-
-    /*
-     * OCR
-     */
-
-    if (
-        currentFeature === "ocr" &&
+        file.type &&
         file.type.startsWith("image/")
     ) {
 
         analyzeImage(
             file,
-            true
+            currentFeature === "ocr"
         );
 
-        event.target.value = "";
-
-        return;
-    }
-
-
-    /*
-     * NORMAL IMAGE
-     */
-
-    if (
-        file.type.startsWith("image/")
-    ) {
+    } else {
 
         addMessage(
-            "📸 " + file.name,
-            "user"
-        );
-
-        showLocalImage(file);
-
-        addMessage(
-            "📸 Image received. Select “Analyze Image” to analyze it.",
-            "ai"
-        );
-
-    }
-
-
-    /*
-     * PDF / DOCUMENT
-     */
-
-    else {
-
-        addMessage(
-            "📄 " + file.name,
-            "user"
-        );
-
-        addMessage(
-            "📄 File received. Full PDF/document analysis will be connected next.",
+            `📄 ${file.name}\n\nFull file analysis will be connected here.`,
             "ai"
         );
     }
-
-
-    event.target.value = "";
 }
 
 
-/* =========================================================
-   SHOW LOCAL IMAGE
-   ========================================================= */
-
-function showLocalImage(file) {
-
-    if (!messages) {
-        return;
-    }
-
-
-    const wrapper =
-        document.createElement("div");
-
-    wrapper.className =
-        "message ai-message image-result";
-
-
-    const img =
-        document.createElement("img");
-
-
-    img.alt =
-        file.name;
-
-
-    const reader =
-        new FileReader();
-
-
-    reader.onload =
-        function(event) {
-
-            img.src =
-                event.target.result;
-
-            wrapper.appendChild(img);
-
-            messages.appendChild(wrapper);
-
-            scrollToBottom();
-        };
-
-
-    reader.readAsDataURL(file);
-}
-
-
-/* =========================================================
-   ANALYZE IMAGE
-   ========================================================= */
+// =========================================================
+// IMAGE ANALYSIS
+// =========================================================
 
 async function analyzeImage(
     file,
     isOCR = false
 ) {
 
-    if (isProcessing) {
-        return;
-    }
-
-    isProcessing = true;
-
-
     addMessage(
-        "📸 " + file.name,
+        `📎 ${file.name}`,
         "user"
     );
 
 
-    showLocalImage(file);
-
-
-    const loading =
-        addMessage(
-            isOCR
-                ? "📷 Reading text from image"
-                : "🔎 Analyzing your image",
-            "ai",
-            true
-        );
+    const typingId =
+        showTyping();
 
 
     try {
@@ -908,16 +708,16 @@ async function analyzeImage(
         const formData =
             new FormData();
 
-
         formData.append(
             "image",
             file
         );
 
-
         formData.append(
             "ocr",
-            isOCR ? "true" : "false"
+            isOCR
+                ? "true"
+                : "false"
         );
 
 
@@ -931,74 +731,44 @@ async function analyzeImage(
             );
 
 
-        let data;
-
-        try {
-            data = await response.json();
-        } catch {
-            data = {};
-        }
+        const data =
+            await response.json();
 
 
-        if (loading) {
-            loading.remove();
-        }
+        removeTyping(typingId);
 
 
         if (!response.ok) {
 
-            addMessage(
-                "❌ " +
-                (
-                    data.error ||
-                    "Image analysis failed."
-                ),
-                "ai"
-            );
-
-            return;
-        }
-
-
-        if (data.reply) {
-
-            typeMessage(
-                data.reply
-            );
-
-        } else {
-
-            addMessage(
-                "❌ No analysis result was generated.",
-                "ai"
+            throw new Error(
+                data.error ||
+                "Image analysis failed."
             );
         }
+
+
+        addMessage(
+            data.reply,
+            "ai"
+        );
 
 
     } catch (error) {
 
-        console.error(error);
-
-        if (loading) {
-            loading.remove();
-        }
+        removeTyping(typingId);
 
         addMessage(
-            "❌ Could not connect to image analysis server.",
+            "❌ " +
+            error.message,
             "ai"
         );
-
-    } finally {
-
-        isProcessing = false;
     }
-
 }
 
 
-/* =========================================================
-   VOICE INPUT
-   ========================================================= */
+// =========================================================
+// VOICE INPUT
+// =========================================================
 
 function startVoice() {
 
@@ -1018,11 +788,6 @@ function startVoice() {
     }
 
 
-    if (isProcessing) {
-        return;
-    }
-
-
     const recognition =
         new SpeechRecognition();
 
@@ -1030,78 +795,48 @@ function startVoice() {
     recognition.lang =
         "bn-BD";
 
-
-    recognition.continuous =
-        false;
-
-
     recognition.interimResults =
         false;
-
 
     recognition.maxAlternatives =
         1;
 
 
     recognition.onstart =
-        function() {
+        function () {
 
-            if (input) {
-
-                input.placeholder =
-                    "🎙️ Listening...";
-
-                input.disabled =
-                    true;
-            }
+            addMessage(
+                "🎙️ Listening...",
+                "ai"
+            );
         };
 
 
     recognition.onresult =
-        function(event) {
+        function (event) {
 
-            const transcript =
+            const text =
                 event.results[0][0].transcript;
 
 
-            if (input) {
+            const input =
+                document.getElementById(
+                    "userInput"
+                );
 
-                input.disabled =
-                    false;
 
-                input.value =
-                    transcript;
+            input.value =
+                text;
 
-                input.placeholder =
-                    features[currentFeature]
-                        .placeholder;
 
-                autoResize(input);
+            autoResize(input);
 
-                input.focus();
-            }
+            input.focus();
         };
 
 
     recognition.onerror =
-        function(event) {
-
-            console.error(
-                "Voice error:",
-                event.error
-            );
-
-
-            if (input) {
-
-                input.disabled =
-                    false;
-
-                input.placeholder =
-                    features[currentFeature]
-                        .placeholder;
-            }
-
+        function () {
 
             addMessage(
                 "❌ Voice input failed. Please try again.",
@@ -1110,117 +845,74 @@ function startVoice() {
         };
 
 
-    recognition.onend =
-        function() {
-
-            if (input) {
-
-                input.disabled =
-                    false;
-
-                input.placeholder =
-                    features[currentFeature]
-                        .placeholder;
-            }
-        };
-
-
-    try {
-
-        recognition.start();
-
-    } catch (error) {
-
-        console.error(error);
-
-        if (input) {
-            input.disabled = false;
-        }
-    }
+    recognition.start();
 }
 
 
-/* =========================================================
-   MOBILE SIDEBAR
-   ========================================================= */
+// =========================================================
+// MOBILE SIDEBAR
+// =========================================================
 
 function toggleSidebar() {
 
     const sidebar =
         document.getElementById("sidebar");
 
+    const overlay =
+        document.getElementById(
+            "sidebarOverlay"
+        );
 
-    if (!sidebar) {
+
+    if (!sidebar || !overlay) {
         return;
     }
 
 
-    sidebar.classList.toggle(
-        "open"
-    );
+    sidebar.classList.toggle("open");
+
+    overlay.classList.toggle("show");
 }
 
 
-/* =========================================================
-   CLOSE SIDEBAR AFTER CLICK
-   ========================================================= */
+function closeSidebar() {
 
-document.addEventListener(
-    "click",
-    function(event) {
+    const sidebar =
+        document.getElementById("sidebar");
 
-        if (window.innerWidth > 700) {
-            return;
-        }
+    const overlay =
+        document.getElementById(
+            "sidebarOverlay"
+        );
 
 
-        const sidebar =
-            document.getElementById(
-                "sidebar"
-            );
-
-
-        const menuButton =
-            document.querySelector(
-                ".menu-btn"
-            );
-
-
-        if (!sidebar) {
-            return;
-        }
-
-
-        if (
-            sidebar.classList.contains("open") &&
-            !sidebar.contains(event.target) &&
-            !(menuButton &&
-              menuButton.contains(event.target))
-        ) {
-
-            sidebar.classList.remove(
-                "open"
-            );
-        }
-
+    if (sidebar) {
+        sidebar.classList.remove("open");
     }
-);
+
+    if (overlay) {
+        overlay.classList.remove("show");
+    }
+}
 
 
-/* =========================================================
-   INITIALIZE
-   ========================================================= */
+// =========================================================
+// INITIALIZE
+// =========================================================
 
 document.addEventListener(
     "DOMContentLoaded",
-    function() {
+    function () {
+
+        selectFeature("chat");
+
+        const input =
+            document.getElementById(
+                "userInput"
+            );
 
         if (input) {
-
             input.focus();
-
-            autoResize(input);
         }
-
     }
 );
