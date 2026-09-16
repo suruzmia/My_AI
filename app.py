@@ -5,10 +5,11 @@ from flask_cors import CORS
 from google import genai
 from google.genai import types
 
-app = Flask(__name__, static_folder='.', template_folder='.')
+# Flask default static & template path setup
+app = Flask(__name__)
 CORS(app)
 
-# Render Environment Variable থেকে API Key অটোমেটিক নেবে
+# Render Environment Variable থেকে API Key নিবে
 api_key = os.environ.get("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key) if api_key else genai.Client()
 
@@ -92,7 +93,6 @@ def generate_image():
         if not prompt:
             return jsonify({"success": False, "error": "Prompt is required"}), 400
 
-        # Imagen 3 API Call Fixed
         result = client.models.generate_images(
             model='imagen-3.0-generate-002',
             prompt=prompt,
