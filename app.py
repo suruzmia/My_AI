@@ -8,15 +8,15 @@ from google.genai import types
 
 
 # =========================================================
-# MY AI - SERVER
+# MY AI SERVER
 # =========================================================
 
 app = Flask(__name__, static_folder=".")
 
 
-# ---------------------------------------------------------
-# MODELS
-# ---------------------------------------------------------
+# =========================================================
+# GEMINI MODELS
+# =========================================================
 
 TEXT_MODELS = [
     "gemini-3.8-flash",
@@ -28,9 +28,9 @@ TEXT_MODELS = [
 IMAGE_MODEL = "gemini-3.1-flash-image"
 
 
-# ---------------------------------------------------------
+# =========================================================
 # GEMINI CLIENT
-# ---------------------------------------------------------
+# =========================================================
 
 API_KEY = os.environ.get("GEMINI_API_KEY")
 
@@ -38,36 +38,59 @@ client = None
 
 if API_KEY:
     try:
-        client = genai.Client(api_key=API_KEY)
-        print("MY AI: Gemini client initialized.")
+        client = genai.Client(
+            api_key=API_KEY
+        )
+
+        print(
+            "MY AI: Gemini client initialized."
+        )
+
     except Exception as error:
-        print("MY AI: Gemini client error:", repr(error))
+
+        print(
+            "MY AI: Gemini client error:",
+            repr(error)
+        )
+
 else:
-    print("MY AI: GEMINI_API_KEY is missing.")
+
+    print(
+        "MY AI: GEMINI_API_KEY is missing."
+    )
 
 
-# ---------------------------------------------------------
-# HELPERS
-# ---------------------------------------------------------
+# =========================================================
+# ERROR HELPER
+# =========================================================
 
 def api_error(message, status=500):
+
     return jsonify({
         "error": message
     }), status
 
 
+# =========================================================
+# CLIENT CHECK
+# =========================================================
+
 def check_client():
+
     return client is not None
 
 
+# =========================================================
+# TEMPORARY ERROR CHECK
+# =========================================================
+
 def is_temporary_error(error):
-    """
-    Detect temporary Gemini capacity/rate-limit errors.
-    """
 
-    text = str(error).upper()
+    error_text = str(
+        error
+    ).upper()
 
-    temporary_words = [
+    temporary_errors = [
         "503",
         "UNAVAILABLE",
         "HIGH DEMAND",
@@ -78,24 +101,30 @@ def is_temporary_error(error):
         "CAPACITY",
     ]
 
-    return any(word in text for word in temporary_words)
+    for item in temporary_errors:
 
+        if item in error_text:
+            return True
+
+    return False
+
+
+# =========================================================
+# TEXT AI WITH FALLBACK
+# =========================================================
 
 def generate_text_with_fallback(contents):
-    """
-    Try multiple Gemini text models automatically.
-
-    If one model is temporarily unavailable,
-    the next model will be tried.
-    """
 
     last_error = None
 
     for model in TEXT_MODELS:
 
-        # First attempt
+        print(
+            "Trying text model:",
+            model
+        )
+
         try:
-            print(f"Trying text model: {model}")
 
             response = client.models.generate_content(
                 model=model,
@@ -103,25 +132,35 @@ def generate_text_with_fallback(contents):
             )
 
             if response and response.text:
-                print(f"Success: {model}")
+
+                print(
+                    "Text generation success:",
+                    model
+                )
+
                 return response.text
 
         except Exception as error:
+
             last_error = error
 
             print(
-                f"{model} failed: {repr(error)}"
+                model,
+                "failed:",
+                repr(error)
             )
 
-            # Retry only temporary errors
+            # Retry temporary errors once
             if is_temporary_error(error):
 
                 try:
+
                     print(
-                        f"Retrying {model}..."
+                        "Retrying:",
+                        model
                     )
 
-                    time.sleep(1.5)
+                    time.sleep(1)
 
                     response = client.models.generate_content(
                         model=model,
@@ -129,44 +168,49 @@ def generate_text_with_fallback(contents):
                     )
 
                     if response and response.text:
+
                         print(
-                            f"Retry success: {model}"
+                            "Retry success:",
+                            model
                         )
+
                         return response.text
 
                 except Exception as retry_error:
+
                     last_error = retry_error
 
                     print(
-                        f"{model} retry failed: "
-                        f"{repr(retry_error)}"
+                        model,
+                        "retry failed:",
+                        repr(retry_error)
                     )
-
-            continue
 
     raise RuntimeError(
         "All text models are temporarily unavailable."
     ) from last_error
 
 
-# ---------------------------------------------------------
+# =========================================================
 # HOME
-# ---------------------------------------------------------
+# =========================================================
 
 @app.route("/")
 def home():
+
     return send_from_directory(
         ".",
         "index.html"
     )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # STATIC FILES
-# ---------------------------------------------------------
+# =========================================================
 
 @app.route("/<path:filename>")
 def static_files(filename):
+
     return send_from_directory(
         ".",
         filename
@@ -177,28 +221,43 @@ def static_files(filename):
 # AI CHAT
 # =========================================================
 
-@app.route("/api/chat", methods=["POST"])
+@app.route(
+    "/api/chat",
+    methods=["POST"]
+)
 def chat():
 
     if not check_client():
+
         return api_error(
             "GEMINI_API_KEY is not configured on the server.",
             500
         )
 
+
     data = request.get_json(
         silent=True
     ) or {}
 
+
     message = str(
-        data.get("message", "")
+        data.get(
+            "message",
+            ""
+        )
     ).strip()
+
 
     feature = str(
-        data.get("feature", "chat")
+        data.get(
+            "feature",
+            "chat"
+        )
     ).strip()
 
+
     if not message:
+
         return api_error(
             "Message is required.",
             400
@@ -220,7 +279,7 @@ def chat():
 
         "translate":
             "Act as a translation assistant. "
-            "Translate accurately while preserving the intended meaning.",
+            "Translate accurately while preserving meaning.",
 
         "summarize":
             "Summarize the user's text clearly "
@@ -228,7 +287,7 @@ def chat():
 
         "math":
             "Act as a math solver. "
-            "Solve the problem carefully and explain the steps.",
+            "Solve problems carefully and explain steps.",
 
         "search":
             "Answer as an AI assistant. "
@@ -236,19 +295,17 @@ def chat():
             "unless a search tool is actually connected.",
 
         "notes":
-            "Help the user create clear, organized "
-            "and useful notes.",
+            "Help the user create clear, organized and useful notes.",
 
         "voice":
             "Respond naturally as a conversational AI assistant.",
 
         "file":
             "Help the user with file-related questions. "
-            "If a file is required, ask them to upload it.",
+            "If a file is required, ask the user to upload it.",
 
         "ocr":
-            "Help with text recognition from images. "
-            "If an image is required, ask the user to upload it.",
+            "Help with text recognition from images.",
 
         "editing":
             "Help the user describe image editing instructions clearly.",
@@ -295,6 +352,7 @@ User message:
             "reply": reply
         })
 
+
     except Exception as error:
 
         print(
@@ -303,29 +361,36 @@ User message:
         )
 
         return api_error(
-            "AI is temporarily busy. "
-            "Please try again in a few seconds.",
+            "AI is temporarily busy. Please try again.",
             503
         )
 
 
 # =========================================================
-# IMAGE ANALYSIS / OCR
+# IMAGE ANALYSIS + OCR
 # =========================================================
 
-@app.route("/api/analyze-image", methods=["POST"])
+@app.route(
+    "/api/analyze-image",
+    methods=["POST"]
+)
 def analyze_image():
 
     if not check_client():
+
         return api_error(
             "GEMINI_API_KEY is not configured on the server.",
             500
         )
 
 
-    image = request.files.get("image")
+    image = request.files.get(
+        "image"
+    )
+
 
     if image is None:
+
         return api_error(
             "No image was uploaded.",
             400
@@ -334,7 +399,9 @@ def analyze_image():
 
     image_bytes = image.read()
 
+
     if not image_bytes:
+
         return api_error(
             "The uploaded image is empty.",
             400
@@ -347,7 +414,10 @@ def analyze_image():
     )
 
 
-    if not mime_type.startswith("image/"):
+    if not mime_type.startswith(
+        "image/"
+    ):
+
         return api_error(
             "Please upload a valid image.",
             400
@@ -374,7 +444,7 @@ Return the recognized text as accurately as possible.
 
 Rules:
 
-- Preserve original wording where possible.
+- Preserve the original wording where possible.
 - Keep line breaks when useful.
 - If there is no readable text,
   clearly say that.
@@ -403,10 +473,12 @@ that cannot be seen.
 
 
     contents = [
+
         types.Part.from_bytes(
             data=image_bytes,
             mime_type=mime_type
         ),
+
         prompt
     ]
 
@@ -417,9 +489,11 @@ that cannot be seen.
             contents
         )
 
+
         return jsonify({
             "reply": reply
         })
+
 
     except Exception as error:
 
@@ -427,6 +501,7 @@ that cannot be seen.
             "IMAGE ANALYSIS ERROR:",
             repr(error)
         )
+
 
         return api_error(
             "Image analysis is temporarily unavailable.",
@@ -438,10 +513,14 @@ that cannot be seen.
 # IMAGE GENERATION
 # =========================================================
 
-@app.route("/api/generate-image", methods=["POST"])
+@app.route(
+    "/api/generate-image",
+    methods=["POST"]
+)
 def generate_image():
 
     if not check_client():
+
         return api_error(
             "GEMINI_API_KEY is not configured on the server.",
             500
@@ -454,15 +533,25 @@ def generate_image():
 
 
     prompt = str(
-        data.get("prompt", "")
+        data.get(
+            "prompt",
+            ""
+        )
     ).strip()
 
 
     if not prompt:
+
         return api_error(
             "Image prompt is required.",
             400
         )
+
+
+    print(
+        "IMAGE REQUEST:",
+        prompt
+    )
 
 
     try:
@@ -474,10 +563,80 @@ def generate_image():
             contents=prompt,
 
             config=types.GenerateContentConfig(
-                response_modalities=["IMAGE"]
+
+                response_modalities=[
+                    "IMAGE"
+                ]
             )
         )
 
+
+        # -------------------------------------------------
+        # Read generated image
+        # -------------------------------------------------
+
+        if not response:
+
+            return api_error(
+                "Empty response received from image model.",
+                500
+            )
+
+
+        # New SDK response.parts
+        parts = response.parts
+
+
+        if parts:
+
+            for part in parts:
+
+                if part.inline_data is None:
+                    continue
+
+
+                image_bytes = (
+                    part.inline_data.data
+                )
+
+
+                if not image_bytes:
+                    continue
+
+
+                mime_type = (
+                    part.inline_data.mime_type
+                    or "image/png"
+                )
+
+
+                image_base64 = (
+                    base64.b64encode(
+                        image_bytes
+                    ).decode(
+                        "utf-8"
+                    )
+                )
+
+
+                print(
+                    "IMAGE GENERATED SUCCESSFULLY"
+                )
+
+
+                return jsonify({
+
+                    "image":
+                        image_base64,
+
+                    "mime_type":
+                        mime_type
+                })
+
+
+        # -------------------------------------------------
+        # Fallback response.candidates
+        # -------------------------------------------------
 
         for candidate in (
             response.candidates or []
@@ -513,7 +672,14 @@ def generate_image():
                 image_base64 = (
                     base64.b64encode(
                         image_bytes
-                    ).decode("utf-8")
+                    ).decode(
+                        "utf-8"
+                    )
+                )
+
+
+                print(
+                    "IMAGE GENERATED SUCCESSFULLY"
                 )
 
 
@@ -527,8 +693,18 @@ def generate_image():
                 })
 
 
+        # -------------------------------------------------
+        # No image
+        # -------------------------------------------------
+
+        print(
+            "IMAGE RESPONSE DID NOT CONTAIN IMAGE"
+        )
+
+
         return api_error(
-            "No image was generated.",
+            "The AI did not return an image. "
+            "Please try another prompt.",
             500
         )
 
@@ -540,9 +716,11 @@ def generate_image():
             repr(error)
         )
 
+
+        # Return actual error so we can diagnose it
         return api_error(
-            "Image generation failed. "
-            "Please try again.",
+            "Image generation error: "
+            + str(error),
             500
         )
 
@@ -551,7 +729,10 @@ def generate_image():
 # HEALTH CHECK
 # =========================================================
 
-@app.route("/api/health", methods=["GET"])
+@app.route(
+    "/api/health",
+    methods=["GET"]
+)
 def health():
 
     return jsonify({
@@ -574,24 +755,29 @@ def health():
 
 
 # =========================================================
-# 404
+# API 404
 # =========================================================
 
 @app.errorhandler(404)
 def not_found(error):
 
-    if request.path.startswith("/api/"):
+    if request.path.startswith(
+        "/api/"
+    ):
 
         return jsonify({
+
             "error":
                 "API endpoint not found."
+
         }), 404
+
 
     return error
 
 
 # =========================================================
-# RUN
+# RUN SERVER
 # =========================================================
 
 if __name__ == "__main__":
@@ -603,8 +789,12 @@ if __name__ == "__main__":
         )
     )
 
+
     app.run(
+
         host="0.0.0.0",
+
         port=port,
+
         debug=False
-            )
+                )
