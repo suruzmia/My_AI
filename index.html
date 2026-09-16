@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My AI Mini App</title>
+    <title>My AI Web Mini App</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- Code Highlight CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
 </head>
 <body>
     <div class="app-container">
-        <!-- Sidebar -->
+        <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="logo">
                 <i class="fa-solid fa-robot"></i> My AI
@@ -25,7 +24,8 @@
                 <button class="menu-btn" data-mode="translate"><i class="fa-solid fa-language"></i> 🌐 Translator</button>
             </nav>
             <div class="sidebar-footer">
-                <a href="https://your-monetization-link.com" target="_blank" class="support-btn">
+                <!-- Monetization Shortener / Support Button -->
+                <a href="https://your-link.com" target="_blank" class="support-btn">
                     <i class="fa-solid fa-heart"></i> Support Developer
                 </a>
             </div>
@@ -44,10 +44,13 @@
                 </div>
             </div>
 
-            <!-- Input Box -->
+            <!-- Preview File Tag -->
+            <div id="file-tag-container"></div>
+
+            <!-- Input Controls -->
             <div class="input-container">
                 <input type="file" id="file-input" style="display: none;" accept="image/*,.pdf">
-                <button class="icon-btn" id="attach-btn" title="Attach File">
+                <button class="icon-btn" id="attach-btn" title="Attach Image/PDF">
                     <i class="fa-solid fa-paperclip"></i>
                 </button>
                 <button class="icon-btn" id="voice-btn" title="Voice Input">
@@ -59,7 +62,7 @@
         </main>
     </div>
 
-    <!-- Libraries for Markdown & Syntax Highlighting -->
+    <!-- External Markdown and Syntax Highlighting Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
     <script src="app.js"></script>
